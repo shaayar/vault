@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Editor } from './components/Editor/Editor'
 import { NoteList } from './components/NoteList/NoteList'
-import { Sidebar } from './components/Sidebar/Sidebar'
-import { VaultSwitcher } from './components/VaultSwitcher/VaultSwitcher'
+import { ObsidianSidebar } from './components/FileExplorer/ObsidianSidebar'
+import { FocusMode } from './components/FocusMode/FocusMode'
+import { StatusBar } from './components/StatusBar/StatusBar'
+import { Header } from './components/VaultSwitcher/Header'
 import { useNoteStore } from './store/noteStore'
 import { useVaultStore } from './store/vaultStore'
 
@@ -14,13 +16,21 @@ function App() {
   const isLight = theme === 'light'
   const [isFocusMode, setIsFocusMode] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [isNoteListCollapsed, setIsNoteListCollapsed] = useState(false)
-  const [sidebarWidth, setSidebarWidth] = useState(() => Number(window.localStorage.getItem('vaultnote:sidebarWidth')) || 240)
+  const [isResizing, setIsResizing] = useState(false)
+  const [sidebarWidth, setSidebarWidth] = useState(() => Number(window.localStorage.getItem('vaultnote:sidebarWidth')) || 260) // Wider for ObsidianSidebar
   const [noteListWidth, setNoteListWidth] = useState(() => Number(window.localStorage.getItem('vaultnote:noteListWidth')) || 320)
   const activeVault = useVaultStore((state) => state.activeVault)
   const fetchVaults = useVaultStore((state) => state.fetchVaults)
   const clearNotesForVaultSwitch = useNoteStore((state) => state.clearNotesForVaultSwitch)
   const loadNoteTreeForVault = useNoteStore((state) => state.loadNoteTreeForVault)
+  const activeNoteContent = useNoteStore((state) => state.activeNoteContent)
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(newTheme)
+    window.localStorage.setItem('vaultnote:theme', newTheme)
+    document.documentElement.classList.toggle('light', newTheme === 'light')
+  }
 
   useEffect(() => {
     fetchVaults()
@@ -48,8 +58,22 @@ function App() {
     }
   }, [theme])
 
+  // Keyboard shortcut for focus mode (Ctrl+Shift+F)
+  useEffect(() => {
+    const handleKeydown = (event) => {
+      if (event.ctrlKey && event.shiftKey && event.key === 'F') {
+        event.preventDefault()
+        setIsFocusMode((value) => !value)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeydown)
+    return () => window.removeEventListener('keydown', handleKeydown)
+  }, [])
+
   const startResize = (panel) => (event) => {
     event.preventDefault()
+    setIsResizing(true)
     const startX = event.clientX
     const startSidebar = sidebarWidth
     const startNoteList = noteListWidth
@@ -58,16 +82,20 @@ function App() {
 
     const onMouseMove = (moveEvent) => {
       const delta = moveEvent.clientX - startX
+
       if (panel === 'sidebar') {
-        const next = Math.max(minWidth, Math.min(maxWidth, startSidebar + delta))
-        setSidebarWidth(next)
-      } else {
-        const next = Math.max(minWidth, Math.min(maxWidth, startNoteList + delta))
-        setNoteListWidth(next)
+        const newWidth = Math.max(minWidth, Math.min(maxWidth, startSidebar + delta))
+        setSidebarWidth(newWidth)
+        window.localStorage.setItem('vaultnote:sidebarWidth', newWidth)
+      } else if (panel === 'notes') {
+        const newWidth = Math.max(minWidth, Math.min(maxWidth, startNoteList + delta))
+        setNoteListWidth(newWidth)
+        window.localStorage.setItem('vaultnote:noteListWidth', newWidth)
       }
     }
 
     const onMouseUp = () => {
+      setIsResizing(false)
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', onMouseUp)
     }
@@ -77,93 +105,54 @@ function App() {
   }
 
   return (
-    <div className={`h-screen ${isLight ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-slate-100'}`}>
-      <div className={isLight ? 'border-b border-slate-300' : 'border-b border-slate-700'}>
-        <VaultSwitcher
-          theme={theme}
-          onToggleTheme={() => setTheme((value) => (value === 'dark' ? 'light' : 'dark'))}
-          isLight={isLight}
-        />
-      </div>
-      <main
-        className="relative grid h-[calc(100vh-57px)]"
-        style={{
-          gridTemplateColumns: `${isSidebarCollapsed || isFocusMode ? '0px' : `${sidebarWidth}px`} ${isNoteListCollapsed || isFocusMode ? '0px' : `${noteListWidth}px`} minmax(0, 1fr)`,
-        }}
-      >
-        {(isSidebarCollapsed || isNoteListCollapsed) && (
-          <div className="absolute left-2 top-2 z-10 flex items-center gap-2">
-            {isSidebarCollapsed ? (
-              <button
-                type="button"
-                className={`rounded-md border px-2 py-1 text-xs ${
-                  isLight
-                    ? 'border-slate-300 bg-white/90 text-slate-700 hover:bg-slate-100'
-                    : 'border-slate-600 bg-slate-900/90 text-slate-200 hover:bg-slate-800'
-                }`}
-                onClick={() => setIsSidebarCollapsed(false)}
-              >
-                Show Folders
-              </button>
-            ) : null}
-            {isNoteListCollapsed ? (
-              <button
-                type="button"
-                className={`rounded-md border px-2 py-1 text-xs ${
-                  isLight
-                    ? 'border-slate-300 bg-white/90 text-slate-700 hover:bg-slate-100'
-                    : 'border-slate-600 bg-slate-900/90 text-slate-200 hover:bg-slate-800'
-                }`}
-                onClick={() => setIsNoteListCollapsed(false)}
-              >
-                Show Notes
-              </button>
-            ) : null}
+    <div className={`bg-surface text-on-surface select-none overflow-hidden h-screen w-screen ${isResizing ? 'resizing' : ''}`}>
+      {/* Focus Mode Component */}
+      <FocusMode
+        isActive={isFocusMode}
+        onExit={() => setIsFocusMode(false)}
+        activeNoteContent={activeNoteContent}
+      />
+
+      {!isFocusMode && (
+        <>
+          {/* TopAppBar */}
+          <Header
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            isLight={isLight}
+            onToggleFocusMode={() => setIsFocusMode(!isFocusMode)}
+          />
+
+          {/* Main Content */}
+          <div className="flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+            {/* Left Sidebar - Obsidian-style */}
+            <ObsidianSidebar
+              isLight={isLight}
+              isFocusMode={isFocusMode}
+              isCollapsed={isSidebarCollapsed}
+              width={sidebarWidth}
+              onWidthChange={setSidebarWidth}
+              onCollapseChange={setIsSidebarCollapsed}
+            />
+
+            {/* Resize Handle: Sidebar <-> Editor */}
+            {!isSidebarCollapsed && (
+              <div
+                className="resize-handle w-1 bg-slate-800 cursor-col-resize relative z-10"
+                onMouseDown={startResize('sidebar')}
+                title="Drag to resize folders panel"
+              />
+            )}
+
+            {/* Divider Gutter */}
+            {isSidebarCollapsed && <div className="w-1 bg-slate-950" />}
+            <Editor isLight={isLight} />
           </div>
-        )}
-        <Sidebar
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed((value) => !value)}
-          isLight={isLight}
-        />
-        <NoteList
-          isCollapsed={isNoteListCollapsed}
-          onToggleCollapse={() => setIsNoteListCollapsed((value) => !value)}
-          isLight={isLight}
-        />
-        {!isSidebarCollapsed && !isFocusMode ? (
-          <button
-            type="button"
-            className="absolute bottom-0 top-0 z-20 w-1 cursor-col-resize bg-slate-800/60 hover:bg-slate-700"
-            style={{ left: `${sidebarWidth}px` }}
-            onMouseDown={startResize('sidebar')}
-            aria-label="Resize folders panel"
-          />
-        ) : null}
-        {!isNoteListCollapsed && !isFocusMode ? (
-          <button
-            type="button"
-            className="absolute bottom-0 top-0 z-20 w-1 cursor-col-resize bg-slate-800/60 hover:bg-slate-700"
-            style={{ left: `${(isSidebarCollapsed ? 0 : sidebarWidth) + noteListWidth}px` }}
-            onMouseDown={startResize('notes')}
-            aria-label="Resize notes panel"
-          />
-        ) : null}
-        <div className="absolute right-2 top-2 z-10">
-          <button
-            type="button"
-            className={`rounded-md border px-2 py-1 text-xs ${
-              isLight
-                ? 'border-slate-300 bg-white/90 text-slate-700 hover:bg-slate-100'
-                : 'border-slate-600 bg-slate-900/90 text-slate-200 hover:bg-slate-800'
-            }`}
-            onClick={() => setIsFocusMode((value) => !value)}
-          >
-            {isFocusMode ? 'Exit Focus' : 'Focus Mode'}
-          </button>
-        </div>
-        <Editor isLight={isLight} />
-      </main>
+
+          {/* StatusBar */}
+          <StatusBar isLight={isLight} />
+        </>
+      )}
     </div>
   )
 }

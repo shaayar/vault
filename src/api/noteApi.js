@@ -101,3 +101,56 @@ export async function createFolder(vaultName, folderPath) {
   }
   return payload.data
 }
+
+/**
+ * Rename a note within its current folder.
+ */
+export async function renameNote(vaultName, notePath, newName) {
+  const response = await fetch(
+    `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodePath(notePath)}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    },
+  )
+  const payload = await response.json()
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.error ?? 'Failed to rename note')
+  }
+  return payload.data
+}
+
+/**
+ * Rename a folder within its current parent folder.
+ */
+export async function renameFolder(vaultName, folderPath, newName) {
+  const response = await fetch(
+    `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders/${encodePath(folderPath)}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    },
+  )
+  const payload = await response.json()
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.error ?? 'Failed to rename folder')
+  }
+  return payload.data
+}
+
+/**
+ * Delete a folder by relative path.
+ */
+export async function deleteFolder(vaultName, folderPath) {
+  const response = await fetch(
+    `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders/${encodePath(folderPath)}`,
+    { method: 'DELETE' },
+  )
+  const payload = await response.json()
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.error ?? 'Failed to delete folder')
+  }
+  return payload.data
+}

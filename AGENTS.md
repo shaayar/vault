@@ -37,6 +37,7 @@ src/
 - `GET /api/vaults/{vault}/notes` — recursive tree
 - `GET/POST/PUT/DELETE /api/vaults/{vault}/notes/{path...}` — `.md` only
 - `POST /api/vaults/{vault}/folders`, `DELETE .../folders/{path...}` (empty folder only)
+- `PATCH /api/vaults/{vault}/notes/{path...}` and `PATCH .../folders/{path...}` — rename in place
 
 Path rules: sanitized segments, `realpath` boundary under `vaults/`.
 

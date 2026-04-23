@@ -1,0 +1,92 @@
+.vaultnote-mdx-editor {
+  font-family: inherit;
+}
+
+.vaultnote-mdx-editor.dark-theme {
+  background-color: rgb(15 23 42);
+}
+
+.vaultnote-mdx-editor.dark-theme {
+  --baseText: rgb(226 232 240);
+  --baseTextContrast: rgb(248 250 252);
+  --baseBg: rgb(15 23 42);
+  --baseBgHover: rgb(30 41 59);
+  --baseBgActive: rgb(51 65 85);
+  --baseLine: rgb(51 65 85);
+  --baseBorder: rgb(71 85 105);
+}
+
+/* Let prose handle most typography */
+.vaultnote-mdx-editor.dark-theme .prose {
+  color: rgb(226 232 240);
+}
+
+/* Slight hierarchy */
+.vaultnote-mdx-editor.dark-theme .prose h1,
+.vaultnote-mdx-editor.dark-theme .prose h2,
+.vaultnote-mdx-editor.dark-theme .prose h3 {
+  color: rgb(248 250 252);
+}
+
+/* Softer paragraphs */
+.vaultnote-mdx-editor.dark-theme .prose p {
+  color: rgb(203 213 225);
+}
+
+/* Links should stand out */
+.vaultnote-mdx-editor.dark-theme .prose a {
+  color: rgb(125 211 252);
+}
+
+/* Code blocks */
+.vaultnote-mdx-editor.dark-theme .prose code {
+  background-color: rgb(30 41 59);
+}
+
+.vaultnote-mdx-editor.dark-theme .prose pre {
+  background-color: rgb(30 41 59);
+}
+
+/* Blockquotes */
+.vaultnote-mdx-editor.dark-theme .prose blockquote {
+  color: rgb(203 213 225);
+  border-left-color: rgb(71 85 105);
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor h1 {
+  font-size: 2rem !important;
+  font-weight: 700;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor h2 {
+  font-size: 1.5rem !important;
+  font-weight: 600;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor h3 {
+  font-size: 1.25rem !important;
+  font-weight: 600;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-toolbar {
+  background: rgb(15 23 42);
+  border-bottom: 1px solid rgb(51 65 85);
+  color: rgb(226 232 240);
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-toolbar button,
+.vaultnote-mdx-editor.dark-theme .mdxeditor-toolbar [role='button'],
+.vaultnote-mdx-editor.dark-theme .mdxeditor-toolbar select,
+.vaultnote-mdx-editor.dark-theme .mdxeditor-toolbar svg {
+  color: inherit;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-select-content {
+  color: rgb(226 232 240);
+  background: rgb(15 23 42);
+  border: 1px solid rgb(71 85 105);
+}
+
+.vaultnote-mdx-editor.dark-theme [data-radix-popper-content-wrapper] {
+  color: rgb(226 232 240);
+}

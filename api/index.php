@@ -217,6 +217,90 @@ function build_tree_node(string $folderPath, string $rootPath): array
     ];
 }
 
+/**
+ * Update or insert a simple title frontmatter field.
+ */
+function update_note_title_frontmatter(string $content, string $title): string
+{
+    $quotedTitle = json_encode($title, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    if ($quotedTitle === false) {
+        $quotedTitle = '"' . addslashes($title) . '"';
+    }
+
+    if (preg_match('/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/', $content, $matches) === 1) {
+        $frontmatter = (string) $matches[1];
+        $body = (string) ($matches[2] ?? '');
+
+        if (preg_match('/^title:\s*.*$/m', $frontmatter) === 1) {
+            $frontmatter = (string) preg_replace('/^title:\s*.*$/m', 'title: ' . $quotedTitle, $frontmatter, 1);
+        } else {
+            $frontmatter = trim($frontmatter) === ''
+                ? 'title: ' . $quotedTitle
+                : 'title: ' . $quotedTitle . "\n" . $frontmatter;
+        }
+
+        return "---\n" . rtrim($frontmatter, "\n") . "\n---\n" . ltrim($body, "\n");
+    }
+
+    return "---\ntitle: " . $quotedTitle . "\n---\n\n" . $content;
+}
+
+/**
+ * Rename a note and keep its title metadata in sync.
+ */
+function rename_note_in_place(string $notesDir, string $resolvedNote, string $newName): string
+{
+    $cleanName = sanitize_name($newName);
+    if ($cleanName === '') {
+        send_json(400, error_response('New note name is required'));
+    }
+
+    $targetDir = dirname($resolvedNote);
+    $targetPath = $targetDir . DIRECTORY_SEPARATOR . $cleanName . '.md';
+    if (realpath($targetPath) !== false) {
+        send_json(400, error_response('Target note already exists'));
+    }
+
+    $content = file_get_contents($resolvedNote);
+    if ($content === false) {
+        send_json(500, error_response('Failed to read note'));
+    }
+
+    $updatedContent = update_note_title_frontmatter($content, $cleanName);
+    if (!rename($resolvedNote, $targetPath)) {
+        send_json(500, error_response('Failed to rename note'));
+    }
+
+    if (file_put_contents($targetPath, $updatedContent) === false) {
+        send_json(500, error_response('Failed to rewrite renamed note'));
+    }
+
+    return ltrim(str_replace(str_replace('\\', '/', $notesDir), '', str_replace('\\', '/', $targetPath)), '/');
+}
+
+/**
+ * Rename a folder within the notes tree.
+ */
+function rename_folder_in_place(string $notesDir, string $resolvedFolder, string $newName): string
+{
+    $cleanName = sanitize_name($newName);
+    if ($cleanName === '') {
+        send_json(400, error_response('New folder name is required'));
+    }
+
+    $targetDir = dirname($resolvedFolder);
+    $targetPath = $targetDir . DIRECTORY_SEPARATOR . $cleanName;
+    if (realpath($targetPath) !== false) {
+        send_json(400, error_response('Target folder already exists'));
+    }
+
+    if (!rename($resolvedFolder, $targetPath)) {
+        send_json(500, error_response('Failed to rename folder'));
+    }
+
+    return ltrim(str_replace(str_replace('\\', '/', $notesDir), '', str_replace('\\', '/', $targetPath)), '/');
+}
+
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $scriptName = $_SERVER['SCRIPT_NAME'] ?? '/api/index.php';
@@ -428,6 +512,23 @@ if ($method === 'POST' && count($segments) >= 4 && $segments[2] === 'notes') {
     send_json(201, success_response(['path' => $notePath]));
 }
 
+if ($method === 'PATCH' && count($segments) >= 4 && $segments[2] === 'notes') {
+    $vaultRoot = get_vault_root();
+    $notesDir = get_notes_root($vaultRoot, $segments[1]);
+    $notePath = implode('/', array_slice($segments, 3));
+    $resolvedNote = resolve_under_notes_root($notesDir, $notePath, true);
+
+    if (!is_file($resolvedNote) || !str_ends_with(strtolower($resolvedNote), '.md')) {
+        send_json(404, error_response('Note not found'));
+    }
+
+    $payload = read_json_body();
+    $newName = (string) ($payload['name'] ?? '');
+    $renamedPath = rename_note_in_place($notesDir, $resolvedNote, $newName);
+
+    send_json(200, success_response(['path' => $renamedPath]));
+}
+
 if ($method === 'PUT' && count($segments) >= 4 && $segments[2] === 'notes') {
     $vaultRoot = get_vault_root();
     $notesDir = get_notes_root($vaultRoot, $segments[1]);
@@ -483,6 +584,23 @@ if ($method === 'POST' && count($segments) === 3 && $segments[2] === 'folders') 
     send_json(201, success_response(['path' => $folderPath]));
 }
 
+if ($method === 'PATCH' && count($segments) >= 4 && $segments[2] === 'folders') {
+    $vaultRoot = get_vault_root();
+    $notesDir = get_notes_root($vaultRoot, $segments[1]);
+    $folderPath = implode('/', array_slice($segments, 3));
+    $resolvedFolder = resolve_under_notes_root($notesDir, $folderPath, true);
+
+    if (!is_dir($resolvedFolder)) {
+        send_json(404, error_response('Folder not found'));
+    }
+
+    $payload = read_json_body();
+    $newName = (string) ($payload['name'] ?? '');
+    $renamedPath = rename_folder_in_place($notesDir, $resolvedFolder, $newName);
+
+    send_json(200, success_response(['path' => $renamedPath]));
+}
+
 if ($method === 'DELETE' && count($segments) >= 4 && $segments[2] === 'folders') {
     $vaultRoot = get_vault_root();
     $notesDir = get_notes_root($vaultRoot, $segments[1]);
@@ -506,6 +624,81 @@ if ($method === 'DELETE' && count($segments) >= 4 && $segments[2] === 'folders')
     }
 
     send_json(200, success_response(['path' => $folderPath]));
+}
+
+if ($method === 'POST' && count($segments) === 4 && $segments[2] === 'images' && $segments[3] === 'upload') {
+    $vaultRoot = get_vault_root();
+    $vaultName = sanitize_name($segments[1]);
+    if ($vaultName === '') {
+        send_json(400, error_response('Invalid vault name'));
+    }
+
+    $vaultPath = $vaultRoot . DIRECTORY_SEPARATOR . $vaultName;
+    if (!is_dir($vaultPath)) {
+        send_json(404, error_response('Vault not found'));
+    }
+
+    $imagesDir = $vaultPath . DIRECTORY_SEPARATOR . 'images';
+    if (!is_dir($imagesDir) && !mkdir($imagesDir, 0775, true) && !is_dir($imagesDir)) {
+        send_json(500, error_response('Failed to create images directory'));
+    }
+
+    if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+        send_json(400, error_response('No valid image file uploaded'));
+    }
+
+    $file = $_FILES['image'];
+    $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    if (!in_array($mimeType, $allowedTypes)) {
+        send_json(400, error_response('Invalid image type'));
+    }
+
+    $maxSize = 10 * 1024 * 1024; // 10MB
+    if ($file['size'] > $maxSize) {
+        send_json(400, error_response('Image too large (max 10MB)'));
+    }
+
+    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = 'img_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
+    $targetPath = $imagesDir . DIRECTORY_SEPARATOR . $filename;
+
+    if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+        send_json(500, error_response('Failed to save image'));
+    }
+
+    $imageUrl = '/vaults/' . urlencode($vaultName) . '/images/' . urlencode($filename);
+    send_json(201, success_response(['url' => $imageUrl]));
+}
+
+if ($method === 'DELETE' && count($segments) >= 4 && $segments[2] === 'images') {
+    $vaultRoot = get_vault_root();
+    $vaultName = sanitize_name($segments[1]);
+    if ($vaultName === '') {
+        send_json(400, error_response('Invalid vault name'));
+    }
+
+    $filename = sanitize_name($segments[3] ?? '');
+    if ($filename === '') {
+        send_json(400, error_response('Invalid filename'));
+    }
+
+    $vaultPath = $vaultRoot . DIRECTORY_SEPARATOR . $vaultName;
+    $imagesDir = $vaultPath . DIRECTORY_SEPARATOR . 'images';
+    $targetPath = $imagesDir . DIRECTORY_SEPARATOR . $filename;
+
+    if (!is_file($targetPath)) {
+        send_json(404, error_response('Image not found'));
+    }
+
+    if (!unlink($targetPath)) {
+        send_json(500, error_response('Failed to delete image'));
+    }
+
+    send_json(200, success_response(['deleted' => true]));
 }
 
 send_json(404, error_response('Route not found'));
