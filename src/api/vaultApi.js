@@ -1,57 +1,68 @@
+import { safeFetch, retryFetch, logApiError, showErrorToast, showSuccessToast } from '../utils/errorHandler'
+
 const API_BASE = '/api'
 
 /**
  * Fetch all vault names.
  */
 export async function getVaults() {
-  const response = await fetch(`${API_BASE}/vaults`)
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to fetch vaults')
+  try {
+    const payload = await retryFetch(`${API_BASE}/vaults`)
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'getVaults' })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to load vaults')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Create a new vault by name.
  */
 export async function createVault(vaultName) {
-  const response = await fetch(`${API_BASE}/vaults`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: vaultName }),
-  })
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to create vault')
+  try {
+    const payload = await retryFetch(`${API_BASE}/vaults`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: vaultName }),
+    })
+    showSuccessToast('Vault created successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'createVault', vaultName })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to create vault')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Fetch meta.json for a vault.
  */
 export async function getVaultMeta(vaultName) {
-  const response = await fetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/meta`)
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to fetch vault metadata')
+  try {
+    const payload = await retryFetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/meta`)
+    return payload
+  } catch (error) {
+    logApiError(error, { action: 'getVaultMeta', vaultName })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to load vault metadata')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Update pinned notes in vault metadata.
  */
 export async function updateVaultMeta(vaultName, pinnedNotes) {
-  const response = await fetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/meta`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pinned_notes: pinnedNotes }),
-  })
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to update vault metadata')
+  try {
+    const payload = await retryFetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/meta`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinned_notes: pinnedNotes }),
+    })
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'updateVaultMeta', vaultName, pinnedNotes })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to update vault metadata')
+    throw error
   }
-  return payload.data
 }

@@ -6,6 +6,13 @@ export function sanitizeName(value) {
 }
 
 /**
+ * Produce a filesystem-safe note/folder segment from user input.
+ */
+export function toSafePathSegment(value) {
+  return sanitizeName(String(value ?? ''))
+}
+
+/**
  * Normalize path separators for note paths.
  */
 export function normalizePath(pathValue) {

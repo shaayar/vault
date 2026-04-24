@@ -8,27 +8,52 @@ Update this file when architecture, API contracts, or major workflows change.
 
 ## Stack
 
-| Area | Tech |
-|------|------|
-| UI | React 19, Vite 8, Tailwind 4 (`@tailwindcss/vite`), Zustand |
-| Markdown | `react-markdown`, `remark-gfm` |
-| YAML | `js-yaml` via `src/utils/markdownUtils.js` |
-| API | PHP 8+ single entry `api/index.php` (JSON `{ success, data \| error }`) |
-| Host | Shared PHP (no Node server in prod) |
+| Area     | Tech                                                                     |
+|----------|--------------------------------------------------------------------------|
+| UI       | React 19, Vite 8, Tailwind 4 ( `@tailwindcss/vite` ), Zustand          |
+| Markdown | `@mdxeditor/editor` (WYSIWYG), `react-markdown`, `remark-gfm`           |
+| YAML     | `js-yaml` via `src/utils/markdownUtils.js`                              |
+| API      | PHP 8+ single entry `api/index.php` ( JSON `{ success, data \| error }` ) |
+| Icons    | `lucide-react`                                                           |
+| Graph    | `d3-force` for visualization                                            |
+| Host     | Shared PHP (no Node server in prod)                                      |
 
 ## Repo layout (high signal)
 
 ```markdown
-api/index.php          # REST router; vault ops + notes + folders + meta
+api/index.php          # REST router; vault ops + notes + folders + meta + images
 vaults/                # user data; .htaccess blocks PHP execution here
 src/
   App.jsx              # theme, focus mode, panel widths, resize handles
   main.jsx             # root + App.css
   App.css              # tailwind import + globals
-  api/                 # fetch helpers (vaultApi, noteApi)
+  api/                 # fetch helpers (vaultApi, noteApi, imageApi)
   store/               # vaultStore, noteStore (Zustand)
-  components/        # VaultSwitcher, Sidebar, NoteList, Editor, GraphViewModal
-  utils/               # markdownUtils, fileUtils, wikiLinks (backlinks + graph edges)
+  components/
+    Editor/            # MDXEditor wrapper, editor styles
+    FileExplorer/      # Sidebar with folder tree, context menu, rename
+    FocusMode/         # Distraction-free reading mode
+    GraphViewModal/    # d3-force note graph visualization
+    LandingScreen/     # Welcome/onboarding screen
+    NoteList/          # Note list for selected folder
+    Search/            # Search modal (Ctrl+K)
+    Shortcuts/         # Keyboard shortcuts modal
+    Sidebar/           # Legacy sidebar (backup exists)
+    StatusBar/         # Bottom status bar
+    Templates/         # Note templates modal
+    VaultSwitcher/     # Header with vault selector
+  hooks/               # useResponsive (mobile/tablet breakpoints)
+  utils/
+    markdownUtils.js   # frontmatter parsing, YAML handling
+    fileUtils.js       # path sanitization, safe segments
+    wikiLinks.js       # backlinks, graph edge detection
+    imageUtils.js      # image compression/processing
+    fileMetadata.js    # file metadata extraction
+    fileOperations.js  # file operation helpers
+    dragDrop.js        # drag-and-drop handlers
+    errorHandler.js    # centralized error handling
+    treeConverter.js   # tree structure conversion
+    treePerformance.js # tree rendering optimizations
 ```
 
 ## API surface (implemented)
@@ -37,6 +62,9 @@ src/
 - `GET /api/vaults/{vault}/notes` — recursive tree
 - `GET/POST/PUT/DELETE /api/vaults/{vault}/notes/{path...}` — `.md` only
 - `POST /api/vaults/{vault}/folders`, `DELETE .../folders/{path...}` (empty folder only)
+- `PATCH /api/vaults/{vault}/notes/{path...}` and `PATCH .../folders/{path...}` — rename in place
+- `POST /api/vaults/{vault}/images/upload` — image upload (max 10MB, jpeg/png/gif/webp)
+- `DELETE /api/vaults/{vault}/images/{filename}` — image deletion
 
 Path rules: sanitized segments, `realpath` boundary under `vaults/`.
 

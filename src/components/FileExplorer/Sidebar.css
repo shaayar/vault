@@ -1,0 +1,163 @@
+/* Sidebar Styles */
+
+/* File guide lines for nested structure */
+.file-guide {
+  position: absolute;
+  left: 6px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: rgba(148, 163, 184, 0.4);
+  /* slate-300/40 */
+}
+
+/* Custom scrollbar */
+.folder-container::-webkit-scrollbar,
+.Sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.folder-container::-webkit-scrollbar-track,
+.Sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.folder-container::-webkit-scrollbar-thumb,
+.Sidebar::-webkit-scrollbar-thumb {
+  background: #353434;
+  /* slate-700 */
+  border-radius: 10px;
+}
+
+.dark .folder-container::-webkit-scrollbar-thumb,
+.dark .Sidebar::-webkit-scrollbar-thumb {
+  background: #475569;
+  /* slate-600 */
+}
+
+/* Smooth folder expand/collapse animations */
+.folder-content {
+  transition: all 0.2s ease-out;
+}
+
+/* Chevron rotation animation */
+.chevron {
+  transition: transform 0.2s ease;
+}
+
+/* Hover states for interactive elements */
+.folder-header:hover {
+  background-color: rgb(226 232 240);
+  /* slate-200 */
+}
+
+.dark .folder-header:hover {
+  background-color: rgb(51 65 85);
+  /* slate-700 */
+}
+
+/* Active/selected states */
+.folder-header.active {
+  background-color: rgb(226 232 240);
+  /* slate-200 */
+  color: rgb(15 23 42);
+  /* slate-900 */
+}
+
+.dark .folder-header.active {
+  background-color: rgb(51 65 85);
+  /* slate-700 */
+  color: rgb(248 250 252);
+  /* slate-50 */
+}
+
+/* File node hover states */
+.file-node:hover {
+  background-color: rgb(226 232 240);
+  /* slate-200 */
+}
+
+.dark .file-node:hover {
+  background-color: rgb(51 65 85);
+  /* slate-700 */
+}
+
+/* Active file node */
+.file-node.active {
+  background-color: rgb(219 234 254);
+  /* blue-100 */
+  color: rgb(37 99 235);
+  /* blue-600 */
+  border-left: 2px solid rgb(37 99 235);
+  /* blue-600 */
+}
+
+.dark .file-node.active {
+  background-color: rgb(30 58 138);
+  /* blue-900 */
+  color: rgb(96 165 250);
+  /* blue-400 */
+  border-left: 2px solid rgb(96 165 250);
+  /* blue-400 */
+}
+
+/* Context menu animations */
+.context-menu-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.context-menu-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: all 0.1s ease-out;
+}
+
+.context-menu-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.context-menu-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.1s ease-in;
+}
+
+/* Workspace footer hover effect */
+.workspace-footer {
+  transition: all 0.2s ease;
+}
+
+.workspace-footer:hover .workspace-actions {
+  opacity: 1;
+}
+
+/* Focus styles for accessibility */
+.folder-header:focus-visible,
+.file-node:focus-visible {
+  outline: 2px solid rgb(59 130 246);
+  /* blue-500 */
+  outline-offset: 1px;
+}
+
+/* Loading states */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Drag and drop states (future) */
+.drag-over {
+  background-color: rgb(219 234 254);
+  /* blue-100 */
+}
+
+.dark .drag-over {
+  background-color: rgb(30 58 138);
+  /* blue-900 */
+}
+
+.dragging {
+  opacity: 0.5;
+}

@@ -25,7 +25,7 @@ export const useVaultStore = create((set, get) => ({
 
       set({
         vaults: normalizedVaults,
-        activeVault: hasCurrentVault ? currentActiveVault : normalizedVaults[0] ?? '',
+        activeVault: hasCurrentVault ? currentActiveVault : normalizedVaults[0] ?? 'demo-vault',
         isLoading: false,
       })
     } catch (error) {

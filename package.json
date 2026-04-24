@@ -1,18 +1,24 @@
 {
-  "name": "explorer",
+  "name": "vault-note",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev-full": "./start-dev.sh",
+    "api": "php -S 127.0.0.1:8000 -t api/index.php",
+    "mock-api": "node mock-server.cjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mdxeditor/editor": "^3.55.0",
+    "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.2",
     "d3-force": "^3.0.0",
     "js-yaml": "^4.1.1",
+    "lucide-react": "^1.8.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
