@@ -224,6 +224,7 @@ export const useNoteStore = create((set, get) => ({
         isLoading: false,
       })
     } catch (error) {
+      console.error('Failed to load note tree for vault:', vaultName, error)
       set({
         noteTree: { name: 'Root', path: '', folders: [], notes: [] },
         selectedFolderPath: '',
@@ -232,7 +233,7 @@ export const useNoteStore = create((set, get) => ({
         pinnedNotes: [],
         recentNotes: [],
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch notes',
+        error: error.message || 'Failed to load vault'
       })
     }
   },
@@ -241,13 +242,13 @@ export const useNoteStore = create((set, get) => ({
     set({ isLoading: true, error: '' })
     try {
       const note = await getNote(vaultName, notePath)
-      const currentRecent = get().recentNotes.filter((path) => path !== (note.path ?? notePath))
-      const nextRecent = [note.path ?? notePath, ...currentRecent].slice(0, 10)
+      const currentRecent = get().recentNotes.filter((path) => path !== (note.data?.path ?? notePath))
+      const nextRecent = [note.data?.path ?? notePath, ...currentRecent].slice(0, 10)
       window.localStorage.setItem(`vaultnote:recent:${vaultName}`, JSON.stringify(nextRecent))
       set({
-        activeNotePath: note.path ?? notePath,
-        activeNoteContent: note.content ?? '',
-        lastSavedContent: note.content ?? '',
+        activeNotePath: note.data?.path ?? notePath,
+        activeNoteContent: note.data?.content ?? '',
+        lastSavedContent: note.data?.content ?? '',
         recentNotes: nextRecent,
         saveStatus: 'idle',
         isLoading: false,

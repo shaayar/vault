@@ -1,3 +1,5 @@
+import { safeFetch, retryFetch, logApiError, showErrorToast, showSuccessToast } from '../utils/errorHandler'
+
 const API_BASE = '/api'
 
 function encodePath(path) {
@@ -12,145 +14,169 @@ function encodePath(path) {
  * Fetch recursive note tree for a vault.
  */
 export async function getNoteTree(vaultName) {
-  const response = await fetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes`)
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to fetch note tree')
+  try {
+    const payload = await retryFetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes`)
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'getNoteTree', vaultName })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to load note tree')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Fetch full note content by path.
  */
 export async function getNote(vaultName, notePath) {
-  const encodedPath = encodePath(notePath)
-  const response = await fetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodedPath}`)
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to fetch note')
+  try {
+    const encodedPath = encodePath(notePath)
+    const payload = await retryFetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodedPath}`)
+    return payload
+  } catch (error) {
+    logApiError(error, { action: 'getNote', vaultName, notePath })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to load note')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Create a markdown note file.
  */
 export async function createNote(vaultName, notePath, content = '') {
-  const response = await fetch(
-    `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodePath(notePath)}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
-    },
-  )
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to create note')
+  try {
+    const payload = await retryFetch(
+      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodePath(notePath)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      },
+    )
+    showSuccessToast('Note created successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'createNote', vaultName, notePath })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to create note')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Update note content.
  */
 export async function updateNote(vaultName, notePath, content) {
-  const response = await fetch(
-    `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodePath(notePath)}`,
-    {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
-    },
-  )
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to update note')
+  try {
+    const payload = await retryFetch(
+      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodePath(notePath)}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      },
+    )
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'updateNote', vaultName, notePath })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to update note')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Delete a note by relative path.
  */
 export async function deleteNote(vaultName, notePath) {
-  const response = await fetch(
-    `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodePath(notePath)}`,
-    { method: 'DELETE' },
-  )
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to delete note')
+  try {
+    const payload = await retryFetch(
+      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodePath(notePath)}`,
+      { method: 'DELETE' },
+    )
+    showSuccessToast('Note deleted successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'deleteNote', vaultName, notePath })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to delete note')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Create a folder under notes root.
  */
 export async function createFolder(vaultName, folderPath) {
-  const response = await fetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path: folderPath }),
-  })
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to create folder')
+  try {
+    const payload = await retryFetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: folderPath }),
+    })
+    showSuccessToast('Folder created successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'createFolder', vaultName, folderPath })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to create folder')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Rename a note within its current folder.
  */
 export async function renameNote(vaultName, notePath, newName) {
-  const response = await fetch(
-    `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodePath(notePath)}`,
-    {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName }),
-    },
-  )
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to rename note')
+  try {
+    const payload = await retryFetch(
+      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodePath(notePath)}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newName }),
+      },
+    )
+    showSuccessToast('Note renamed successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'renameNote', vaultName, notePath, newName })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to rename note')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Rename a folder within its current parent folder.
  */
 export async function renameFolder(vaultName, folderPath, newName) {
-  const response = await fetch(
-    `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders/${encodePath(folderPath)}`,
-    {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName }),
-    },
-  )
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to rename folder')
+  try {
+    const payload = await retryFetch(
+      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders/${encodePath(folderPath)}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newName }),
+      },
+    )
+    showSuccessToast('Folder renamed successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'renameFolder', vaultName, folderPath, newName })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to rename folder')
+    throw error
   }
-  return payload.data
 }
 
 /**
  * Delete a folder by relative path.
  */
 export async function deleteFolder(vaultName, folderPath) {
-  const response = await fetch(
-    `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders/${encodePath(folderPath)}`,
-    { method: 'DELETE' },
-  )
-  const payload = await response.json()
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.error ?? 'Failed to delete folder')
+  try {
+    const payload = await retryFetch(
+      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders/${encodePath(folderPath)}`,
+      { method: 'DELETE' },
+    )
+    showSuccessToast('Folder deleted successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'deleteFolder', vaultName, folderPath })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to delete folder')
+    throw error
   }
-  return payload.data
 }

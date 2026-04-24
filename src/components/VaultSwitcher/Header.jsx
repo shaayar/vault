@@ -2,18 +2,25 @@ import { useState } from 'react'
 import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
 import { GraphViewModal } from '../GraphViewModal/GraphViewModal'
-import { SquareSplitHorizontal, Share2, ScanEye, FolderTree, Moon, Sun, FilePlusCorner, Menu, NotebookText } from 'lucide-react';
+import { SearchModal } from '../Search/SearchModal'
+import { ShortcutsModal } from '../Shortcuts/ShortcutsModal'
+import { TemplatesModal } from '../Templates/TemplatesModal'
+import { SquareSplitHorizontal, Share2, ScanEye, FolderTree, Moon, Sun, Menu, NotebookText, Search, Keyboard, FileText, FilePlusCorner } from 'lucide-react';
 
 /**
  * Dashboard header with vault switching, navigation, and controls.
  */
 export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
   const { vaults, activeVault, isLoading, setActiveVault, createVault } = useVaultStore()
-  const { clearNotesForVaultSwitch, loadNoteTreeForVault, createNoteInFolder, selectedFolderPath } = useNoteStore()
+  const { clearNotesForVaultSwitch, loadNoteTreeForVault } = useNoteStore()
   const editorMode = useNoteStore((state) => state.editorMode)
   const setEditorMode = useNoteStore((state) => state.setEditorMode)
   const noteIndex = useNoteStore((state) => state.noteIndex)
   const openNote = useNoteStore((state) => state.openNote)
+  const createNote = useNoteStore((state) => state.createNote)
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false)
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false)
   const [showGraph, setShowGraph] = useState(false)
 
   const handleCreateVault = async () => {
@@ -34,18 +41,12 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
     if (!noteTitle) {
       return
     }
-    await createNoteInFolder(activeVault, selectedFolderPath, noteTitle.trim())
+    await createNote(activeVault, `${noteTitle.trim()}.md`, '')
   }
+
 
   return (
     <>
-      {/* Original Header - Commented Out */}
-      {/* <header className="flex items-center justify-between px-6 w-full sticky top-0 z-50 bg-slate-950/80 backdrop-blur-xl h-14 border-b border-white/[0.03] relative">
-        <div className="absolute top-1 left-1 bg-yellow-500 text-white text-xs px-1 py-0.5 rounded z-50 font-mono">VaultSwitcher</div>
-        <div className="flex items-center gap-8">
-          <span className="text-lg font-bold tracking-tighter text-slate-100">VaultNote</span>
-          <nav className="hidden md:flex items-center gap-6 font-sans text-sm tracking-tight font-medium"> */}
-
       {/* New Header Design */}
       <header className={`flex items-center justify-between px-8 w-full h-16 ${isLight ? 'bg-linear-to-r from-slate-100 via-white to-slate-100 border-b border-slate-300/50' : 'bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50'} shadow-lg relative`}>
 
@@ -100,6 +101,14 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
               <button
+                className="bg-green-500/20 text-green-400 px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-green-500/30 transition-all duration-200"
+                onClick={() => setIsSearchModalOpen(true)}
+                title="Open Search (Ctrl+Shift+F)"
+              >
+                <Search className="w-4 h-4" />
+                <span className="hidden sm:inline">Search</span>
+              </button>
+              <button
                 className="bg-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-indigo-500/30 transition-all duration-200"
                 onClick={() => setShowGraph(true)}
                 title="Open Graph View (Ctrl+G)"
@@ -115,6 +124,22 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
                 <ScanEye className="w-4 h-4" />
                 <span className="hidden sm:inline">Focus</span>
               </button>
+              <button
+                className="bg-slate-500/20 text-slate-400 px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-slate-500/30 transition-all duration-200"
+                onClick={() => setIsShortcutsModalOpen(true)}
+                title="Keyboard Shortcuts (Ctrl+Shift+P)"
+              >
+                <Keyboard className="w-4 h-4" />
+                <span className="hidden sm:inline">Shortcuts</span>
+              </button>
+              <button
+                className="bg-amber-500/20 text-amber-400 px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-amber-500/30 transition-all duration-200"
+                onClick={() => setIsTemplatesModalOpen(true)}
+                title="File Templates (Ctrl+Shift+T)"
+              >
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">Templates</span>
+              </button>
             </div>
           </nav>
         </div>
@@ -127,11 +152,19 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
               className={`bg-transparent font-medium focus:outline-none border-none ${isLight ? 'text-slate-900 focus:text-slate-900' : 'text-slate-200 focus:text-white'}`}
               value={activeVault}
               onChange={async (e) => {
-                const newVault = e.target.value
-                setActiveVault(newVault)
-                clearNotesForVaultSwitch()
-                if (newVault) {
-                  await loadNoteTreeForVault(newVault)
+                try {
+                  const newVault = e.target.value
+                  setActiveVault(newVault)
+                  clearNotesForVaultSwitch()
+                  if (newVault) {
+                    await loadNoteTreeForVault(newVault)
+                  }
+                } catch (error) {
+                  console.error('Failed to switch vault:', error)
+                  // Show error toast if available
+                  if (typeof showErrorToast === 'function') {
+                    showErrorToast('Failed to load vault. Please try again.')
+                  }
                 }
               }}
               disabled={isLoading}
@@ -190,6 +223,27 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
           </div>
         </div>
       </header>
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+      />
+
+      {/* Shortcuts Modal */}
+      <ShortcutsModal
+        isOpen={isShortcutsModalOpen}
+        onClose={() => setIsShortcutsModalOpen(false)}
+      />
+
+      {/* Templates Modal */}
+      <TemplatesModal
+        isOpen={isTemplatesModalOpen}
+        onClose={() => setIsTemplatesModalOpen(false)}
+        onCreateFromTemplate={async (fileName, content) => {
+          await createNote(activeVault, fileName, content)
+        }}
+      />
 
       {/* Graph View Modal */}
       <GraphViewModal

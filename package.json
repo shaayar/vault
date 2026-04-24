@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev-full": "./start-dev.sh",
+    "api": "php -S 127.0.0.1:8000 -t api/index.php",
     "mock-api": "node mock-server.cjs",
     "build": "vite build",
     "lint": "eslint .",

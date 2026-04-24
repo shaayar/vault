@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
-import { convertNoteTreeToObsidianFormat } from '../../utils/treeConverter'
+import { convertNoteTreeToObsidianFormat, generateNodeId } from '../../utils/treeConverter'
 import { treeEngine } from './treeEngine'
 import { buildChildrenMap } from './indexedDB'
 
@@ -65,28 +65,65 @@ export const useFileExplorerStore = create((set, get) => ({
   // Node operations
   createNode: async (parentId, type, name) => {
     try {
+      // Set loading state
+      set({ isLoading: true, error: null })
+
       // Get parent node path
       const parentNode = parentId ? get().nodesById[parentId] : null
       const parentPath = parentNode ? parentNode.path : ''
 
-      // Use noteStore API to create real file/folder
+      // Get data from real vault
       const noteStore = useNoteStore.getState()
       const vaultStore = useVaultStore.getState()
       const activeVault = vaultStore.activeVault
 
       if (!activeVault) {
+        set({ isLoading: false, error: 'No active vault selected' })
         throw new Error('No active vault selected')
       }
 
+      let newNode
+
       if (type === 'note') {
         await noteStore.createNoteInFolder(activeVault, parentPath, name)
+
+        newNode = {
+          id: generateNodeId('note', `${parentPath ? parentPath + '/' : ''}${name}.md`),
+          name: name,
+          type: 'note',
+          parentId: parentId,
+          path: `${parentPath ? parentPath + '/' : ''}${name}.md`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
       } else if (type === 'folder') {
         await noteStore.createFolderInFolder(activeVault, parentPath, name)
+
+        newNode = {
+          id: generateNodeId('folder', `${parentPath ? parentPath + '/' : ''}${name}`),
+          name: name,
+          type: 'folder',
+          parentId: parentId,
+          path: `${parentPath ? parentPath + '/' : ''}${name}`,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
       } else {
         throw new Error('Unsupported node type')
       }
 
-      await get().initialize(useNoteStore.getState().noteTree, activeVault)
+      // Update local state
+      set(state => ({
+        nodesById: {
+          ...state.nodesById,
+          [newNode.id]: newNode
+        },
+        childrenMap: {
+          ...state.childrenMap,
+          [parentId]: [...(state.childrenMap[parentId] || []), newNode.id]
+        },
+        rootNodes: parentId === null ? [...state.rootNodes, newNode.id] : state.rootNodes
+      }))
 
       // Auto-expand parent if it's a folder
       if (parentId) {
@@ -95,31 +132,35 @@ export const useFileExplorerStore = create((set, get) => ({
         }))
       }
 
-      return null
+      // Clear loading state
+      set({ isLoading: false })
+
+      await get().initialize(useNoteStore.getState().noteTree, activeVault)
+      return newNode
     } catch (error) {
       console.error('Failed to create node:', error)
-      set({ error: error.message })
+      set({ isLoading: false, error: error.message })
       throw error
     }
   },
 
   deleteNode: async (nodeId) => {
     try {
+      // Set loading state
+      set({ isLoading: true, error: null })
+
       const { nodesById } = get()
       const node = nodesById[nodeId]
 
       if (!node) {
+        set({ isLoading: false, error: 'Node not found' })
         throw new Error('Node not found')
       }
 
-      // Use noteStore API to delete real file/folder
+      // Delete via real vault
       const noteStore = useNoteStore.getState()
       const vaultStore = useVaultStore.getState()
       const activeVault = vaultStore.activeVault
-
-      if (!activeVault) {
-        throw new Error('No active vault selected')
-      }
 
       if (node.type === 'note') {
         await noteStore.deleteNoteByPath(activeVault, node.path)
@@ -127,10 +168,14 @@ export const useFileExplorerStore = create((set, get) => ({
         await noteStore.deleteFolderByPath(activeVault, node.path)
       }
 
+      // Re-initialize and clear loading state
       await get().initialize(useNoteStore.getState().noteTree, activeVault)
+      set({ isLoading: false })
+
       return [nodeId]
     } catch (error) {
-      set({ error: error.message })
+      console.error('Failed to delete node:', error)
+      set({ isLoading: false, error: error.message })
       throw error
     }
   },
@@ -199,23 +244,11 @@ export const useFileExplorerStore = create((set, get) => ({
   },
 
   showContextMenu: (nodeId, x, y) => {
-    set({
-      contextMenu: {
-        isOpen: true,
-        nodeId,
-        position: { x, y }
-      }
-    })
+    set({ contextMenu: { isOpen: true, nodeId, position: { x, y } } })
   },
 
   hideContextMenu: () => {
-    set({
-      contextMenu: {
-        isOpen: false,
-        nodeId: null,
-        position: { x: 0, y: 0 }
-      }
-    })
+    set({ contextMenu: { isOpen: false, nodeId: null, position: { x: 0, y: 0 } } })
   },
 
   startRenaming: (nodeId) => {

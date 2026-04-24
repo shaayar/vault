@@ -46,7 +46,7 @@ const mockAPI = {
           const content = fs.readFileSync(itemPath, 'utf8');
           const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
           let metadata = {};
-          
+
           if (frontmatterMatch) {
             try {
               // Simple YAML parsing for basic metadata
@@ -103,6 +103,36 @@ const mockAPI = {
 
     const content = fs.readFileSync(noteFilePath, 'utf8');
     return { success: true, data: { path: decodedNotePath, content } };
+  },
+
+  // Get vault metadata
+  '/api/vaults/:vault/meta': (vault) => {
+    const metaPath = path.join(__dirname, 'vaults', vault, 'meta.json');
+    if (fs.existsSync(metaPath)) {
+      try {
+        const metaContent = fs.readFileSync(metaPath, 'utf8');
+        const meta = JSON.parse(metaContent);
+        return { success: true, data: meta };
+      } catch (error) {
+        return { success: false, error: 'Invalid vault metadata format' };
+      }
+    }
+
+    // Return default metadata if meta.json doesn't exist
+    return {
+      success: true,
+      data: {
+        name: vault,
+        created_at: new Date().toISOString(),
+        pinned_notes: [],
+        settings: {
+          theme: 'dark',
+          defaultView: 'split',
+          autoSave: true,
+          showLineNumbers: true
+        }
+      }
+    };
   }
 };
 
@@ -140,6 +170,12 @@ const server = http.createServer((req, res) => {
     const vault = pathParts[3];
     const notePath = pathParts.slice(5).join('/');
     const response = mockAPI['/api/vaults/:vault/notes/:path...'](vault, notePath);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(response));
+  } else if (requestPath.startsWith('/api/vaults/') && requestPath.endsWith('/meta')) {
+    // Get vault metadata
+    const vault = requestPath.split('/')[3];
+    const response = mockAPI['/api/vaults/:vault/meta'](vault);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(response));
   } else {

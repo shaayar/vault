@@ -1,204 +1,208 @@
-import React from 'react'
-import { ChevronRight, Folder, FolderOpen, Activity } from 'lucide-react'
-import { useFileExplorerStore, useFileExplorerHelpers } from './fileExplorerStore'
+import React, { useEffect, useRef } from 'react'
+import { ChevronRight, Folder, FileText } from 'lucide-react'
+import { useFileExplorerStore } from './fileExplorerStore'
+import { useDragDrop } from '../../utils/dragDrop'
 import { RenameInput } from './RenameInput'
 import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
+import { formatFileSize, formatRelativeDate } from '../../utils/fileMetadata'
 
-/**
- * Folder Node Component - Recursive with Dynamic Data
- */
-export function FolderNode({
-  nodeId,
-  depth = 0
-}) {
-  const {
-    getNode,
-    getChildren,
-    isFolder,
-    isNote,
-    isEmpty,
-    isExpanded,
-    toggleExpand,
-    selectNode,
-    showContextMenu,
-    renameNode,
-    stopRenaming
-  } = useFileExplorerHelpers()
-  const isRenaming = useFileExplorerStore((state) => state.renamingNodeId === nodeId)
+export function FileExplorer({ rootId }) {
+  const containerRef = useRef(null)
+  const { initializeDragDrop, cleanup } = useDragDrop()
 
-  const node = getNode(nodeId)
-  if (!node) return null
-
-  const children = getChildren(nodeId)
-  const expanded = isExpanded(nodeId)
-
-  const handleToggle = () => {
-    if (isFolder(nodeId) && !isEmpty(nodeId)) {
-      toggleExpand(nodeId)
-    }
-    selectNode(nodeId)
-  }
-
-  const handleContextMenu = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    showContextMenu(nodeId, e.clientX, e.clientY)
-  }
-
-  const handleRename = (newName) => {
-    renameNode(nodeId, newName)
-    stopRenaming()
-  }
-
-  const handleRenameCancel = () => {
-    stopRenaming()
-  }
+  useEffect(() => {
+    if (!containerRef.current) return
+    initializeDragDrop(containerRef.current)
+    return cleanup
+  }, [])
 
   return (
-    <div className="folder-container">
-      {/* Folder Header */}
-      <div
-        data-node-id={nodeId}
-        className={`
-          flex items-center py-1 px-2 rounded-sm cursor-pointer transition-colors
-          ${expanded
-            ? 'text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-700'
-            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-300'
-          }
-        `}
-        onClick={handleToggle}
-        onContextMenu={handleContextMenu}
-        style={{ marginLeft: `${depth * 16}px` }}
-        tabIndex={-1} // Not directly focusable, but selectable via keyboard
-      >
-        <ChevronRight
-          className={`
-            w-3.5 h-3.5 mr-2 text-slate-400 dark:text-slate-500 transition-transform
-            ${expanded ? 'rotate-90' : ''}
-          `}
-        />
-        <Folder className={`w-4 h-4 mr-2 ${expanded ? 'text-amber-600 dark:text-amber-400' : 'text-amber-500'}`} />
-        {isRenaming ? (
-          <RenameInput
-            initialValue={node.name}
-            onSave={handleRename}
-            onCancel={handleRenameCancel}
-            className="text-sm font-medium"
-          />
-        ) : (
-          <span className="text-sm font-medium">
-            {node.name}
-          </span>
-        )}
-      </div>
-
-      {/* Folder Content */}
-      <div className={`
-        folder-content ml-4 pl-1 relative overflow-hidden transition-all duration-200
-        ${expanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
-      `}>
-        {/* Visual guide line */}
-        <div className="file-guide absolute left-2 top-0 bottom-0 w-px bg-slate-300 dark:bg-slate-600 opacity-40" />
-
-        <div className="pt-1">
-          {isEmpty(nodeId) || children.length === 0 ? (
-            <div className="py-1 px-2 text-sm text-slate-400 dark:text-slate-500 italic">
-              Empty folder
-            </div>
-          ) : (
-            children.map(childId => {
-              if (isFolder(childId)) {
-                return (
-                  <FolderNode
-                    key={childId}
-                    nodeId={childId}
-                    depth={depth + 1}
-                  />
-                )
-              } else if (isNote(childId)) {
-                return (
-                  <FileNode
-                    key={childId}
-                    nodeId={childId}
-                    depth={depth + 1}
-                  />
-                )
-              }
-              return null
-            })
-          )}
-        </div>
-      </div>
+    <div ref={containerRef}>
+      <TreeNode nodeId={rootId} depth={0} />
     </div>
   )
 }
 
-/**
- * File Node Component
- */
-function FileNode({ nodeId, depth = 0 }) {
+/* =========================
+   TREE NODE (RECURSIVE)
+========================= */
+function TreeNode({ nodeId, depth }) {
   const {
     getNode,
+    getChildren,
+    isFolder,
+    isNote
+  } = useFileExplorerStore()
+
+  const node = getNode(nodeId)
+  if (!node) return null
+
+  if (isFolder(nodeId)) {
+    return (
+      <FolderRow node={node} depth={depth}>
+        {getChildren(nodeId).map(childId => (
+          <TreeNode
+            key={childId}
+            nodeId={childId}
+            depth={depth + 1}
+          />
+        ))}
+      </FolderRow>
+    )
+  }
+
+  if (isNote(nodeId)) {
+    return <FileRow node={node} depth={depth} />
+  }
+
+  return null
+}
+
+/* =========================
+   FOLDER ROW
+========================= */
+function FolderRow({ node, depth, children }) {
+  const ref = useRef(null)
+
+  const {
+    isExpanded,
+    toggleExpand,
+    isEmpty,
+    showContextMenu,
+    renameNode,
+    stopRenaming
+  } = useFileExplorerStore()
+
+  const isRenaming = useFileExplorerStore(
+    s => s.renamingNodeId === node.id
+  )
+
+  const expanded = isExpanded(node.id)
+
+  return (
+    <div>
+      {/* Header */}
+      <div
+        ref={ref}
+        data-node-id={node.id}
+        data-drop-zone={node.id}
+        style={{ marginLeft: depth * 16 }}
+        onClick={() => !isEmpty(node.id) && toggleExpand(node.id)}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          showContextMenu(node.id, e.clientX, e.clientY)
+        }}
+        className={`
+          flex items-center py-1 px-2 rounded-sm cursor-pointer
+          ${expanded
+            ? 'bg-slate-200 dark:bg-slate-700'
+            : 'hover:bg-slate-200 dark:hover:bg-slate-700'}
+        `}
+      >
+        <ChevronRight
+          className={`w-3.5 h-3.5 mr-2 transition-transform ${expanded ? 'rotate-90' : ''
+            }`}
+        />
+
+        <Folder className="w-4 h-4 mr-2 text-amber-500" />
+
+        {isRenaming ? (
+          <RenameInput
+            initialValue={node.name}
+            onSave={(name) => {
+              renameNode(node.id, name)
+              stopRenaming()
+            }}
+            onCancel={stopRenaming}
+          />
+        ) : (
+          <span className="text-sm font-medium">{node.name}</span>
+        )}
+      </div>
+
+      {/* Children */}
+      {expanded && (
+        <div className="ml-2">
+          {children.length === 0 ? (
+            <div className="text-xs text-slate-400 px-2 py-1 italic">
+              Empty folder
+            </div>
+          ) : (
+            <>
+              {children}
+
+              {/* Stats */}
+              <div className="mt-2 px-2 py-1 text-xs text-slate-400 border-t">
+                <div className="flex justify-between">
+                  <span>{children.length} items</span>
+                  <span>{formatFileSize(0)}</span>
+                </div>
+                <div>
+                  Last updated:{' '}
+                  {formatRelativeDate(new Date().toISOString())}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* =========================
+   FILE ROW
+========================= */
+function FileRow({ node, depth }) {
+  const {
     isSelected,
     selectNode,
     showContextMenu,
     renameNode,
     stopRenaming
-  } = useFileExplorerHelpers()
-  const activeVault = useVaultStore((state) => state.activeVault)
-  const openNote = useNoteStore((state) => state.openNote)
-  const isRenaming = useFileExplorerStore((state) => state.renamingNodeId === nodeId)
+  } = useFileExplorerStore()
 
-  const node = getNode(nodeId)
-  if (!node) return null
+  const activeVault = useVaultStore(s => s.activeVault)
+  const openNote = useNoteStore(s => s.openNote)
 
-  const active = isSelected(nodeId)
+  const isRenaming = useFileExplorerStore(
+    s => s.renamingNodeId === node.id
+  )
 
-  const handleClick = () => {
-    selectNode(nodeId)
-    if (activeVault && node.path) {
-      openNote(activeVault, node.path)
-    }
-  }
-
-  const handleContextMenu = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    showContextMenu(nodeId, e.clientX, e.clientY)
-  }
-
-  const handleRename = (newName) => {
-    renameNode(nodeId, newName)
-    stopRenaming()
-  }
-
-  const handleRenameCancel = () => {
-    stopRenaming()
-  }
+  const active = isSelected(node.id)
 
   return (
     <div
-      data-node-id={nodeId}
-      className={`
-        flex items-center py-1 px-2 rounded-sm cursor-pointer mt-0.5 transition-colors
-        ${active
-          ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-600 dark:border-blue-400'
-          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-300'
+      data-node-id={node.id}
+      style={{ marginLeft: depth * 16 }}
+      onClick={() => {
+        selectNode(node.id)
+        if (activeVault && node.path) {
+          openNote(activeVault, node.path)
         }
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        showContextMenu(node.id, e.clientX, e.clientY)
+      }}
+      className={`
+        flex items-center py-1 px-2 mt-0.5 cursor-pointer
+        ${active
+          ? 'bg-blue-100 text-blue-600'
+          : 'hover:bg-slate-200 dark:hover:bg-slate-700'}
       `}
-      style={{ marginLeft: `${depth * 16}px` }}
-      onClick={handleClick}
-      onContextMenu={handleContextMenu}
-      tabIndex={-1} // Not directly focusable, but selectable via keyboard
     >
-      <Activity className="w-3.5 h-3.5 mr-2 opacity-60" />
+      <FileText className="w-4 h-4 mr-2 opacity-70" />
+
       {isRenaming ? (
         <RenameInput
           initialValue={node.name}
-          onSave={handleRename}
-          onCancel={handleRenameCancel}
-          className="text-sm"
+          onSave={(name) => {
+            renameNode(node.id, name)
+            stopRenaming()
+          }}
+          onCancel={stopRenaming}
         />
       ) : (
         <span className="text-sm">{node.name}</span>

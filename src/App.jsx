@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
 import { Editor } from './components/Editor/Editor'
-import { NoteList } from './components/NoteList/NoteList'
-import { ObsidianSidebar } from './components/FileExplorer/ObsidianSidebar'
+import { Sidebar } from './components/FileExplorer/Sidebar'
 import { FocusMode } from './components/FocusMode/FocusMode'
 import { StatusBar } from './components/StatusBar/StatusBar'
 import { Header } from './components/VaultSwitcher/Header'
 import { useNoteStore } from './store/noteStore'
 import { useVaultStore } from './store/vaultStore'
+import { useResponsive, useResponsiveSidebar } from './hooks/useResponsive'
+import { useState, useEffect } from 'react'
 
 /**
  * VaultNote root layout with vault switcher and three-panel workspace.
@@ -15,10 +15,14 @@ function App() {
   const [theme, setTheme] = useState(() => window.localStorage.getItem('vaultnote:theme') || 'dark')
   const isLight = theme === 'light'
   const [isFocusMode, setIsFocusMode] = useState(false)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
-  const [sidebarWidth, setSidebarWidth] = useState(() => Number(window.localStorage.getItem('vaultnote:sidebarWidth')) || 260) // Wider for ObsidianSidebar
-  const [noteListWidth, setNoteListWidth] = useState(() => Number(window.localStorage.getItem('vaultnote:noteListWidth')) || 320)
+
+  // Responsive hooks
+  const { isMobile, isTablet, breakpoint } = useResponsive()
+  const { isCollapsed: sidebarCollapsed, isHidden: sidebarHidden, toggle: toggleSidebar, show: showSidebar, hide: hideSidebar } = useResponsiveSidebar()
+
+  // Desktop-only state
+  const [sidebarWidth, setSidebarWidth] = useState(() => Number(window.localStorage.getItem('vaultnote:sidebarWidth')) || 260)
   const activeVault = useVaultStore((state) => state.activeVault)
   const fetchVaults = useVaultStore((state) => state.fetchVaults)
   const clearNotesForVaultSwitch = useNoteStore((state) => state.clearNotesForVaultSwitch)
@@ -45,9 +49,6 @@ function App() {
     window.localStorage.setItem('vaultnote:sidebarWidth', String(sidebarWidth))
   }, [sidebarWidth])
 
-  useEffect(() => {
-    window.localStorage.setItem('vaultnote:noteListWidth', String(noteListWidth))
-  }, [noteListWidth])
 
   useEffect(() => {
     window.localStorage.setItem('vaultnote:theme', theme)
@@ -76,7 +77,6 @@ function App() {
     setIsResizing(true)
     const startX = event.clientX
     const startSidebar = sidebarWidth
-    const startNoteList = noteListWidth
     const minWidth = 180
     const maxWidth = 560
 
@@ -87,10 +87,6 @@ function App() {
         const newWidth = Math.max(minWidth, Math.min(maxWidth, startSidebar + delta))
         setSidebarWidth(newWidth)
         window.localStorage.setItem('vaultnote:sidebarWidth', newWidth)
-      } else if (panel === 'notes') {
-        const newWidth = Math.max(minWidth, Math.min(maxWidth, startNoteList + delta))
-        setNoteListWidth(newWidth)
-        window.localStorage.setItem('vaultnote:noteListWidth', newWidth)
       }
     }
 
@@ -125,18 +121,29 @@ function App() {
 
           {/* Main Content */}
           <div className="flex h-screen bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-            {/* Left Sidebar - Obsidian-style */}
-            <ObsidianSidebar
-              isLight={isLight}
-              isFocusMode={isFocusMode}
-              isCollapsed={isSidebarCollapsed}
-              width={sidebarWidth}
-              onWidthChange={setSidebarWidth}
-              onCollapseChange={setIsSidebarCollapsed}
-            />
+            {/* Left Sidebar */}
+            {!sidebarHidden && (
+              <>
+                <Sidebar
+                  isLight={isLight}
+                  isFocusMode={isFocusMode}
+                  isCollapsed={sidebarCollapsed}
+                  width={isMobile ? window.innerWidth : sidebarWidth}
+                  onResize={!isMobile ? startResize('sidebar') : undefined}
+                />
+
+                {/* Mobile Sidebar Overlay */}
+                {isMobile && (
+                  <div
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                    onClick={hideSidebar}
+                  />
+                )}
+              </>
+            )}
 
             {/* Resize Handle: Sidebar <-> Editor */}
-            {!isSidebarCollapsed && (
+            {!sidebarCollapsed && (
               <div
                 className="resize-handle w-1 bg-slate-800 cursor-col-resize relative z-10"
                 onMouseDown={startResize('sidebar')}
@@ -145,7 +152,7 @@ function App() {
             )}
 
             {/* Divider Gutter */}
-            {isSidebarCollapsed && <div className="w-1 bg-slate-950" />}
+            {sidebarCollapsed && <div className="w-1 bg-slate-950" />}
             <Editor isLight={isLight} />
           </div>
 

@@ -1,4 +1,4 @@
-export { Sidebar, ContextMenu } from './Sidebar'
-export { ObsidianSidebar } from './ObsidianSidebar'
-export { FolderNode } from './FolderNode'
+export { Sidebar } from './Sidebar'
+export { ContextMenu } from './ContextMenu'
+export { FileExplorer } from './FolderNode'
 export { RenameInput } from './RenameInput'
