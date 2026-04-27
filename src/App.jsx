@@ -3,6 +3,10 @@ import { Sidebar } from './components/FileExplorer/Sidebar'
 import { FocusMode } from './components/FocusMode/FocusMode'
 import { StatusBar } from './components/StatusBar/StatusBar'
 import { Header } from './components/VaultSwitcher/Header'
+import { SearchModal } from './components/Search/SearchModal'
+import { ShortcutsModal } from './components/Shortcuts/ShortcutsModal'
+import { GraphViewModal } from './components/GraphViewModal/GraphViewModal'
+import { TemplatesModal } from './components/Templates/TemplatesModal'
 import { useNoteStore } from './store/noteStore'
 import { useVaultStore } from './store/vaultStore'
 import { useResponsive, useResponsiveSidebar } from './hooks/useResponsive'
@@ -16,6 +20,10 @@ function App() {
   const isLight = theme === 'light'
   const [isFocusMode, setIsFocusMode] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false)
+  const [isGraphOpen, setIsGraphOpen] = useState(false)
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false)
 
   // Responsive hooks
   const { isMobile, isTablet, breakpoint } = useResponsive()
@@ -28,6 +36,9 @@ function App() {
   const clearNotesForVaultSwitch = useNoteStore((state) => state.clearNotesForVaultSwitch)
   const loadNoteTreeForVault = useNoteStore((state) => state.loadNoteTreeForVault)
   const activeNoteContent = useNoteStore((state) => state.activeNoteContent)
+  const noteIndex = useNoteStore((state) => state.noteIndex)
+  const openNote = useNoteStore((state) => state.openNote)
+  const createNoteInFolder = useNoteStore((state) => state.createNoteInFolder)
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
@@ -62,9 +73,30 @@ function App() {
   // Keyboard shortcut for focus mode (Ctrl+Shift+F)
   useEffect(() => {
     const handleKeydown = (event) => {
+      // Focus mode: Ctrl+Shift+F
       if (event.ctrlKey && event.shiftKey && event.key === 'F') {
         event.preventDefault()
         setIsFocusMode((value) => !value)
+      }
+      // Search: Ctrl+K
+      if (event.ctrlKey && event.key === 'k') {
+        event.preventDefault()
+        setIsSearchOpen(true)
+      }
+      // Shortcuts: Ctrl+/
+      if (event.ctrlKey && event.key === '/') {
+        event.preventDefault()
+        setIsShortcutsOpen(true)
+      }
+      // Graph: Ctrl+G
+      if (event.ctrlKey && event.key === 'g') {
+        event.preventDefault()
+        setIsGraphOpen(true)
+      }
+      // Templates: Ctrl+T
+      if (event.ctrlKey && event.key === 't') {
+        event.preventDefault()
+        setIsTemplatesOpen(true)
       }
     }
 
@@ -160,6 +192,33 @@ function App() {
           <StatusBar isLight={isLight} />
         </>
       )}
+
+      {/* Modals */}
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
+      <ShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
+      />
+      <GraphViewModal
+        isOpen={isGraphOpen}
+        onClose={() => setIsGraphOpen(false)}
+        noteIndex={noteIndex}
+        openNote={openNote}
+        activeVault={activeVault}
+        isLight={isLight}
+      />
+      <TemplatesModal
+        isOpen={isTemplatesOpen}
+        onClose={() => setIsTemplatesOpen(false)}
+        onCreateFromTemplate={async (fileName, content) => {
+          if (activeVault) {
+            await createNoteInFolder(activeVault, '', fileName.replace('.md', ''), content)
+          }
+        }}
+      />
     </div>
   )
 }

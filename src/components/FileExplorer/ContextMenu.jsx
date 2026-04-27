@@ -109,35 +109,42 @@ export function ContextMenu({ nodeId, position, onClose }) {
   const getMenuItems = () => {
     const items = []
 
-    // Create actions (always available)
-    items.push([
-      { icon: Ambulance, label: 'New note', action: handleNewNote },
-      { icon: Activity, label: 'New folder', action: handleNewFolder }
-    ])
+    // Create actions - only available when right-clicking on folders or empty space
+    if (!node || isFolder(nodeId)) {
+      items.push([
+        { icon: Ambulance, label: 'New note', action: handleNewNote },
+        { icon: Activity, label: 'New folder', action: handleNewFolder }
+      ])
+    }
 
     if (node) {
       // Node-specific operations
-      const nodeOps = [
-        { icon: Copy, label: 'Duplicate', action: handleDuplicate }
-      ]
+      const nodeOps = []
 
-      // Add search for folders
+      // Duplicate available for both folders and notes
+      nodeOps.push(
+        { icon: Copy, label: 'Duplicate', action: handleDuplicate }
+      )
+
+      // Add search for folders only
       if (isFolder(nodeId)) {
         nodeOps.push(
           { icon: Search, label: 'Search in folder', action: () => { console.log('Search not implemented'); onClose() } }
         )
       }
 
-      // Add sub-folder creation for folders
+      // Add sub-folder creation for folders only
       if (isFolder(nodeId)) {
         nodeOps.push(
           { icon: FolderPlus, label: 'New subfolder', action: handleNewSubFolder }
         )
       }
 
-      items.push(nodeOps)
+      if (nodeOps.length > 0) {
+        items.push(nodeOps)
+      }
 
-      // System actions
+      // System actions (copy path)
       items.push([
         { icon: ClipboardPaste, label: 'Copy path', action: handleCopyPath }
       ])
