@@ -1,6 +1,6 @@
 import { safeFetch, retryFetch, logApiError, showErrorToast, showSuccessToast } from '../utils/errorHandler'
 
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
 function encodePath(path) {
   return path

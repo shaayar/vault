@@ -82,48 +82,14 @@ export const useFileExplorerStore = create((set, get) => ({
         throw new Error('No active vault selected')
       }
 
-      let newNode
-
+      // Call API first - don't update local state yet
       if (type === 'note') {
         await noteStore.createNoteInFolder(activeVault, parentPath, name)
-
-        newNode = {
-          id: generateNodeId('note', `${parentPath ? parentPath + '/' : ''}${name}.md`),
-          name: name,
-          type: 'note',
-          parentId: parentId,
-          path: `${parentPath ? parentPath + '/' : ''}${name}.md`,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
       } else if (type === 'folder') {
         await noteStore.createFolderInFolder(activeVault, parentPath, name)
-
-        newNode = {
-          id: generateNodeId('folder', `${parentPath ? parentPath + '/' : ''}${name}`),
-          name: name,
-          type: 'folder',
-          parentId: parentId,
-          path: `${parentPath ? parentPath + '/' : ''}${name}`,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
       } else {
         throw new Error('Unsupported node type')
       }
-
-      // Update local state
-      set(state => ({
-        nodesById: {
-          ...state.nodesById,
-          [newNode.id]: newNode
-        },
-        childrenMap: {
-          ...state.childrenMap,
-          [parentId]: [...(state.childrenMap[parentId] || []), newNode.id]
-        },
-        rootNodes: parentId === null ? [...state.rootNodes, newNode.id] : state.rootNodes
-      }))
 
       // Auto-expand parent if it's a folder
       if (parentId) {
@@ -132,11 +98,13 @@ export const useFileExplorerStore = create((set, get) => ({
         }))
       }
 
+      // Re-initialize tree from server to get accurate state
+      await get().initialize(useNoteStore.getState().noteTree, activeVault)
+
       // Clear loading state
       set({ isLoading: false })
 
-      await get().initialize(useNoteStore.getState().noteTree, activeVault)
-      return newNode
+      return true
     } catch (error) {
       console.error('Failed to create node:', error)
       set({ isLoading: false, error: error.message })

@@ -2,6 +2,8 @@
  * Image upload API functions
  */
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
+
 /**
  * Upload image to server with compression
  * @param {File} file - Image file to upload
@@ -14,7 +16,7 @@ export async function uploadImage(file, vaultName) {
   formData.append('vault', vaultName)
 
   try {
-    const response = await fetch('/api/images/upload', {
+    const response = await fetch(`${API_BASE}/vaults/${vaultName}/images/upload`, {
       method: 'POST',
       body: formData
     })
@@ -40,7 +42,7 @@ export async function uploadImage(file, vaultName) {
 export async function deleteImage(imageUrl, vaultName) {
   try {
     const filename = imageUrl.split('/').pop()
-    const response = await fetch(`/api/images/${vaultName}/${filename}`, {
+    const response = await fetch(`${API_BASE}/vaults/${vaultName}/images/${filename}`, {
       method: 'DELETE'
     })
 

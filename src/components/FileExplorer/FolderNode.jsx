@@ -179,7 +179,9 @@ function FileRow({ node, depth }) {
       onClick={() => {
         selectNode(node.id)
         if (activeVault && node.path) {
-          openNote(activeVault, node.path)
+          // Ensure path has .md extension for API compatibility
+          const notePath = node.path.endsWith('.md') ? node.path : `${node.path}.md`
+          openNote(activeVault, notePath)
         }
       }}
       onContextMenu={(e) => {
