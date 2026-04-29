@@ -9,8 +9,12 @@ import {
   Edit,
   Trash2,
   FolderPlus,
+  ChevronRight,
 } from 'lucide-react'
 import { useFileExplorerHelpers } from './fileExplorerStore'
+
+// Helper to check if node is a folder
+const isFolder = (node) => node?.type === 'folder'
 
 /**
  * Context Menu Component - Portal-based
@@ -19,7 +23,6 @@ export function ContextMenu({ nodeId, position, onClose }) {
   const menuRef = useRef(null)
   const {
     getNode,
-    isFolder,
     createNode,
     deleteNode,
     duplicateNode,
@@ -27,7 +30,6 @@ export function ContextMenu({ nodeId, position, onClose }) {
   } = useFileExplorerHelpers()
 
   const node = nodeId ? getNode(nodeId) : null
-  const isRootNode = nodeId && !node?.parentId
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -67,7 +69,7 @@ export function ContextMenu({ nodeId, position, onClose }) {
   }
 
   const handleNewSubFolder = () => {
-    if (node) {
+    if (node && isFolder(node)) {
       createNode(nodeId, 'folder', 'New Folder')
       onClose()
     }
@@ -110,7 +112,7 @@ export function ContextMenu({ nodeId, position, onClose }) {
     const items = []
 
     // Create actions - only available when right-clicking on folders or empty space
-    if (!node || isFolder(nodeId)) {
+    if (!node || (node && node.type === 'folder')) {
       items.push([
         { icon: Ambulance, label: 'New note', action: handleNewNote },
         { icon: Activity, label: 'New folder', action: handleNewFolder }
@@ -127,14 +129,14 @@ export function ContextMenu({ nodeId, position, onClose }) {
       )
 
       // Add search for folders only
-      if (isFolder(nodeId)) {
+      if (node.type === 'folder') {
         nodeOps.push(
           { icon: Search, label: 'Search in folder', action: () => { console.log('Search not implemented'); onClose() } }
         )
       }
 
       // Add sub-folder creation for folders only
-      if (isFolder(nodeId)) {
+      if (node.type === 'folder') {
         nodeOps.push(
           { icon: FolderPlus, label: 'New subfolder', action: handleNewSubFolder }
         )
@@ -144,18 +146,16 @@ export function ContextMenu({ nodeId, position, onClose }) {
         items.push(nodeOps)
       }
 
+      // Modify actions
+      items.push([
+        { icon: Edit, label: node.type === 'folder' ? 'Rename folder' : 'Rename file', action: handleRename },
+        { icon: Trash2, label: 'Delete', action: handleDelete, isDestructive: true }
+      ])
+
       // System actions (copy path)
       items.push([
         { icon: ClipboardPaste, label: 'Copy path', action: handleCopyPath }
       ])
-
-      // Modify actions (not for root nodes)
-      if (!isRootNode) {
-        items.push([
-          { icon: Edit, label: 'Rename...', action: handleRename },
-          { icon: Trash2, label: 'Delete', action: handleDelete, isDestructive: true }
-        ])
-      }
     }
 
     return items
@@ -211,5 +211,3 @@ export function ContextMenu({ nodeId, position, onClose }) {
   )
 }
 
-// Import ChevronRight for submenu indicator
-import { ChevronRight } from 'lucide-react'

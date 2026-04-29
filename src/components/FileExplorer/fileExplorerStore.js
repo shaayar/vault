@@ -6,7 +6,6 @@
 import { create } from 'zustand'
 import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
-import { convertNoteTreeToObsidianFormat, generateNodeId } from '../../utils/treeConverter'
 import { treeEngine } from './treeEngine'
 import { buildChildrenMap } from './indexedDB'
 
@@ -47,13 +46,66 @@ export const useFileExplorerStore = create((set, get) => ({
         return
       }
 
-      // Convert noteTree to ObsidianSidebar format
-      const convertedData = convertNoteTreeToObsidianFormat(noteTree)
+      // Convert noteTree to ObsidianSidebar format inline
+      const nodesById = {}
+      const childrenMap = {}
+      const rootNodes = []
+
+      function processFolder(folder, parentId = null) {
+        const folderId = `folder-${folder.path || 'root'}`
+
+        nodesById[folderId] = {
+          id: folderId,
+          name: folder.name || folder.path?.split('/').pop() || 'Root',
+          type: 'folder',
+          parentId: parentId,
+          path: folder.path || '',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+
+        if (parentId) {
+          if (!childrenMap[parentId]) {
+            childrenMap[parentId] = []
+          }
+          childrenMap[parentId].push(folderId)
+        } else {
+          rootNodes.push(folderId)
+        }
+
+        const notes = Array.isArray(folder.notes) ? folder.notes : []
+        if (notes.length > 0) {
+          notes.forEach(note => {
+            const noteId = `note-${note.path}`
+            nodesById[noteId] = {
+              id: noteId,
+              name: note.name || note.path?.split('/').pop() || 'Untitled',
+              type: 'note',
+              parentId: folderId,
+              path: note.path || '',
+              createdAt: note.createdAt || new Date(),
+              updatedAt: note.updatedAt || new Date()
+            }
+            if (!childrenMap[folderId]) {
+              childrenMap[folderId] = []
+            }
+            childrenMap[folderId].push(noteId)
+          })
+        }
+
+        if (folder.folders && Array.isArray(folder.folders)) {
+          folder.folders.forEach(subfolder => {
+            processFolder(subfolder, folderId)
+          })
+        }
+      }
+
+      processFolder(noteTree)
 
       set({
-        nodesById: convertedData.nodesById,
-        childrenMap: convertedData.childrenMap,
-        rootNodes: convertedData.rootNodes,
+        nodesById,
+        childrenMap,
+        rootNodes,
         isLoading: false
       })
     } catch (error) {
@@ -66,7 +118,7 @@ export const useFileExplorerStore = create((set, get) => ({
   createNode: async (parentId, type, name) => {
     try {
       // Set loading state
-      set({ isLoading: true, error: null })
+      set({ isLoading: true, error: null, renamingNodeId: null })
 
       // Get parent node path
       const parentNode = parentId ? get().nodesById[parentId] : null
@@ -166,10 +218,13 @@ export const useFileExplorerStore = create((set, get) => ({
         throw new Error('No active vault selected')
       }
 
+      // For notes, ensure the name has .md extension
+      const finalName = node.type === 'note' && !newName.endsWith('.md') ? `${newName}.md` : newName
+
       if (node.type === 'note') {
-        await noteStore.renameNoteByPath(activeVault, node.path, newName)
+        await noteStore.renameNoteByPath(activeVault, node.path, finalName)
       } else if (node.type === 'folder') {
-        await noteStore.renameFolderByPath(activeVault, node.path, newName)
+        await noteStore.renameFolderByPath(activeVault, node.path, finalName)
       }
 
       await get().initialize(useNoteStore.getState().noteTree, activeVault)

@@ -95,7 +95,7 @@ export function ShortcutsModal({ isOpen, onClose }) {
     if (shortcut.platform === 'all') {
       return shortcut.key
     }
-    
+
     const key = isMac && shortcut.mac ? shortcut.mac : shortcut.key
     return key
       .replace('Ctrl', isMac ? '⌘' : 'Ctrl')
@@ -109,13 +109,13 @@ export function ShortcutsModal({ isOpen, onClose }) {
   const filteredShortcuts = shortcuts[activeCategory]?.filter(shortcut => {
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
-    return shortcut.description.toLowerCase().includes(query) || 
-           shortcut.key.toLowerCase().includes(query)
+    return shortcut.description.toLowerCase().includes(query) ||
+      shortcut.key.toLowerCase().includes(query)
   }) || []
 
-  const KeyIcon = ({ key }) => {
+  const KeyIcon = ({ keyCombo }) => {
     const getIcon = (keyChar) => {
-      switch(keyChar) {
+      switch (keyChar) {
         case '↑': return <ArrowUp className="w-3 h-3" />
         case '↓': return <ArrowDown className="w-3 h-3" />
         case '←': return <ArrowLeft className="w-3 h-3" />
@@ -128,8 +128,8 @@ export function ShortcutsModal({ isOpen, onClose }) {
       }
     }
 
-    const parts = key.split(/([+⌘⇧⌥⌃])/)
-    
+    const parts = keyCombo.split(/([+⌘⇧⌥⌃])/)
+
     return (
       <div className="flex items-center gap-1">
         {parts.map((part, index) => {
@@ -197,11 +197,10 @@ export function ShortcutsModal({ isOpen, onClose }) {
               <button
                 key={category.id}
                 onClick={() => setActiveCategory(category.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                  activeCategory === category.id
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
-                }`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${activeCategory === category.id
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 <span className="text-sm font-medium">{category.name}</span>
@@ -223,11 +222,11 @@ export function ShortcutsModal({ isOpen, onClose }) {
                     {shortcut.description}
                   </div>
                 </div>
-                <KeyIcon key={formatKey(shortcut)} />
+                <KeyIcon keyCombo={formatKey(shortcut)} />
               </div>
             ))}
           </div>
-          
+
           {filteredShortcuts.length === 0 && (
             <div className="flex flex-col items-center justify-center py-8 text-slate-500 dark:text-slate-400">
               <Search className="w-12 h-12 mb-4 opacity-50" />

@@ -14,26 +14,14 @@ import { useFileExplorerStore } from './fileExplorerStore'
 import { InteractionManager } from './interactions'
 import { useVaultStore } from '../../store/vaultStore'
 import { useNoteStore } from '../../store/noteStore'
-import {
-  TreeCache,
-  debounce,
-  throttle,
-  createVirtualizedTree,
-  createOptimizedSearch,
-  PerformanceMonitor,
-  createExpansionManager
-} from '../../utils/treePerformance'
 import './Sidebar.css'
 
 /**
  * Main Sidebar Component
  */
-export function Sidebar() {
+export function Sidebar({ className = '' }) {
   const sidebarRef = useRef(null)
   const interactionManagerRef = useRef(null)
-  const performanceMonitor = useMemo(() => new PerformanceMonitor(), [])
-  const expansionManager = useMemo(() => createExpansionManager(), [])
-  const treeCache = useMemo(() => new TreeCache(500), [])
 
   const {
     rootNodes,
@@ -47,39 +35,12 @@ export function Sidebar() {
     createNode,
     showContextMenu,
     hideContextMenu,
-    contextMenu
+    contextMenu,
+    selectedNodeId
   } = useFileExplorerStore()
-
-  // Memoized visible nodes for virtualization
-  const visibleNodes = useMemo(() => {
-    performanceMonitor.startTimer('visible_nodes_calculation')
-    const virtualized = createVirtualizedTree(rootNodes, 600) // 600px height
-    const visible = virtualized.getVisibleNodes(0)
-    performanceMonitor.endTimer('visible_nodes_calculation')
-    return visible
-  }, [rootNodes])
-
-  // Optimized search
-  const handleSearch = useMemo(() => {
-    return createOptimizedSearch(rootNodes, (filteredNodes) => {
-      // Update store with filtered results
-      useFileExplorerStore.getState().setFilteredNodes?.(filteredNodes)
-    })
-  }, [rootNodes])
-
-  // Throttled scroll handler
-  const handleScroll = useMemo(() => {
-    return throttle((scrollTop) => {
-      performanceMonitor.startTimer('scroll_handling')
-      // Update visible nodes based on scroll position
-      performanceMonitor.endTimer('scroll_handling')
-    }, 16) // 60fps
-  }, [])
 
   // Initialize interactions on mount. Data sync happens below once noteStore is ready.
   useEffect(() => {
-    performanceMonitor.startTimer('sidebar_initialization')
-
     if (sidebarRef.current) {
       interactionManagerRef.current = new InteractionManager(useFileExplorerStore.getState())
       interactionManagerRef.current.initialize()
@@ -90,9 +51,6 @@ export function Sidebar() {
       if (interactionManagerRef.current) {
         interactionManagerRef.current.cleanup()
       }
-      performanceMonitor.clear()
-      treeCache.clear()
-      expansionManager.clear()
     }
   }, [])
 
@@ -110,11 +68,11 @@ export function Sidebar() {
   }, [activeVault, noteTree, noteTreeLoading, initialize])
 
   const handleNewNote = () => {
-    createNode(null, 'note', 'Untitled Note')
+    createNode(selectedNodeId, 'note', 'Untitled Note')
   }
 
   const handleNewFolder = () => {
-    createNode(null, 'folder', 'New Folder')
+    createNode(selectedNodeId, 'folder', 'New Folder')
   }
 
   const handleContextMenu = (e) => {
@@ -128,7 +86,7 @@ export function Sidebar() {
 
   if (isLoading) {
     return (
-      <aside className="flex flex-col w-60 bg-slate-100 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-700 z-10">
+      <aside className=" w-60 bg-slate-100 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-700 z-50">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-slate-500 dark:text-slate-400">Loading...</div>
         </div>
@@ -170,7 +128,7 @@ export function Sidebar() {
   return (
     <aside
       ref={sidebarRef}
-      className="flex flex-col w-60 bg-slate-100 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-700 z-10"
+      className={`flex flex-col w-60 bg-slate-100 dark:bg-slate-900 border-r border-slate-300 dark:border-slate-700 z-10 ${className}`}
       tabIndex={0} // Make focusable for keyboard navigation
     >
       {/* Sidebar Header */}

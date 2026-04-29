@@ -71,7 +71,8 @@ Path rules: sanitized segments, `realpath` boundary under `vaults/`.
 ## Frontend state
 
 - **vaultStore**: `vaults`, `activeVault`, `fetchVaults`, `createVault`, …
-- **noteStore**: tree, selection, `noteIndex` (per-note `{ path, title, tags, content, updatedAt, createdAt }` from frontmatter + body), search/tag filters, pins (`meta.json`), recent (localStorage `vaultnote:recent:{vault}`), sort modes, editor autosave.
+- **noteStore**: tree, selection, `noteIndex` (per-note `{ path, title, tags, content, updatedAt, createdAt }` from frontmatter + body), search/tag filters, pins (`meta.json`), recent (localStorage `vaultnote:recent:{vault}`), sort modes, editor autosave. `createNoteInFolder` generates unique filenames (e.g., "Note (1).md") on conflicts.
+- **fileExplorerStore**: manages file tree state with `createNode`, `deleteNode`, `renameNode`, `renamingNodeId` (cleared on node creation to prevent spurious rename prompts).
 
 ## Conventions
 

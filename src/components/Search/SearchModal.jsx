@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Search, X, FileText, Folder, Hash, Calendar, Filter } from 'lucide-react'
 import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
-import { debounce } from '../../utils/treePerformance'
+import { encodeNotePath } from '../../utils/notePath'
 
 /**
  * Advanced search modal with multiple search modes
  */
 export function SearchModal({ isOpen, onClose }) {
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [searchMode, setSearchMode] = useState('all') // all, titles, content, tags
   const [results, setResults] = useState([])
@@ -15,8 +17,9 @@ export function SearchModal({ isOpen, onClose }) {
   const [selectedResult, setSelectedResult] = useState(null)
   const searchInputRef = useRef(null)
 
-  const { noteIndex, activeVault } = useNoteStore()
-  const { vaults } = useVaultStore()
+  const noteIndex = useNoteStore((state) => state.noteIndex)
+  const openNote = useNoteStore((state) => state.openNote)
+  const activeVault = useVaultStore((state) => state.activeVault)
 
   // Focus input when modal opens
   useEffect(() => {
@@ -26,24 +29,46 @@ export function SearchModal({ isOpen, onClose }) {
     }
   }, [isOpen])
 
-  // Advanced search implementation
-  const performSearch = useCallback(debounce(async (searchQuery) => {
-    if (!searchQuery.trim() || !activeVault) {
-      setResults([])
-      return
+  // Close on Escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
     }
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape)
+      return () => document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isOpen, onClose])
 
-    setIsSearching(true)
-    try {
-      const searchResults = await searchVaultContent(searchQuery, searchMode, noteIndex)
-      setResults(searchResults)
-    } catch (error) {
-      console.error('Search failed:', error)
-      setResults([])
-    } finally {
-      setIsSearching(false)
-    }
-  }, 300), [activeVault, noteIndex, searchMode])
+  // Advanced search implementation
+  const performSearch = useMemo(
+    () => {
+      let timeout
+      return async (searchQuery) => {
+        clearTimeout(timeout)
+        timeout = setTimeout(async () => {
+          if (!searchQuery.trim() || !activeVault) {
+            setResults([])
+            return
+          }
+
+          setIsSearching(true)
+          try {
+            const searchResults = await searchVaultContent(searchQuery, searchMode, noteIndex)
+            setResults(searchResults)
+          } catch (error) {
+            console.error('Search failed:', error)
+            setResults([])
+          } finally {
+            setIsSearching(false)
+          }
+        }, 300)
+      }
+    },
+    [activeVault, noteIndex, searchMode],
+  )
 
   // Update search when query or mode changes
   useEffect(() => {
@@ -68,9 +93,10 @@ export function SearchModal({ isOpen, onClose }) {
   const handleResultClick = (result) => {
     setSelectedResult(result)
     // Open the note in editor
-    if (result.type === 'note') {
-      // This would integrate with your note opening logic
-      window.location.hash = `#note/${encodeURIComponent(result.path)}`
+    if (result.type === 'note' && activeVault) {
+      openNote(activeVault, result.path)
+      const encodedPath = encodeNotePath(result.path)
+      navigate(`/${activeVault}/${encodedPath}`)
     }
     onClose()
   }
@@ -170,15 +196,14 @@ export function SearchModal({ isOpen, onClose }) {
             </div>
           ) : (
             <div className="p-2">
-              {highlightedResults.map((result, index) => (
+              {highlightedResults.map((result) => (
                 <div
                   key={result.id}
                   onClick={() => handleResultClick(result)}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                    selectedResult?.id === result.id
-                      ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 border border-transparent'
-                  } border mb-2`}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedResult?.id === result.id
+                    ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700'
+                    : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 border border-transparent'
+                    } border mb-2`}
                 >
                   <div className="flex items-start gap-3">
                     {/* Icon */}
@@ -280,7 +305,7 @@ async function searchVaultContent(query, mode, noteIndex) {
         const contextStart = Math.max(0, contentMatch - 50)
         const contextEnd = Math.min(note.content.length, contentMatch + 100)
         const context = note.content.substring(contextStart, contextEnd)
-        
+
         matches.push({
           type: 'content',
           text: context,
@@ -327,7 +352,7 @@ async function searchVaultContent(query, mode, noteIndex) {
     // Prioritize title matches
     if (a.matchType === 'title' && b.matchType !== 'title') return -1
     if (b.matchType === 'title' && a.matchType !== 'title') return 1
-    
+
     // Then by recency
     return new Date(b.updatedAt) - new Date(a.updatedAt)
   })
@@ -338,7 +363,7 @@ async function searchVaultContent(query, mode, noteIndex) {
  */
 function highlightText(text, query) {
   if (!query || !text) return text
-  
+
   const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi')
   return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">$1</mark>')
 }
@@ -355,12 +380,12 @@ function escapeRegExp(string) {
  */
 function formatDate(dateString) {
   if (!dateString) return 'Unknown'
-  
+
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now - date
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  
+
   if (diffDays === 0) return 'Today'
   if (diffDays === 1) return 'Yesterday'
   if (diffDays < 7) return `${diffDays} days ago`

@@ -1,11 +1,14 @@
 import { Search } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
+import { encodeNotePath } from '../../utils/notePath'
 
 /**
  * Note list panel placeholder for scaffold.
  */
 export function NoteList({ isCollapsed, onToggleCollapse, isLight, noteListWidth, integratedMode = false, onNoteContextMenu }) {
+  const navigate = useNavigate()
   const activeVault = useVaultStore((state) => state.activeVault)
   const selectedFolderPath = useNoteStore((state) => state.selectedFolderPath)
   const notesInFolder = useNoteStore((state) => state.notesInFolder)
@@ -58,7 +61,7 @@ export function NoteList({ isCollapsed, onToggleCollapse, isLight, noteListWidth
 
   return (
     <section className={`h-full overflow-hidden ${integratedMode ? '' : 'border-r'} ${isLight ? (integratedMode ? '' : 'border-slate-300 bg-slate-50') : (integratedMode ? '' : 'border-slate-700 bg-slate-900/30')} relative`} style={isCollapsed ? {} : (integratedMode ? {} : { width: `${noteListWidth}px` })}>
-      
+
 
       {!integratedMode ? (
         <div className="p-3 border-b border-slate-800">
@@ -160,13 +163,17 @@ export function NoteList({ isCollapsed, onToggleCollapse, isLight, noteListWidth
                     ? 'bg-slate-700 text-slate-100'
                     : 'text-slate-300 hover:bg-slate-800'
                     }`}
-                  onClick={() => openNote(activeVault, note.path)}
+                  onClick={() => {
+                    openNote(activeVault, note.path)
+                    const encodedPath = encodeNotePath(note.path)
+                    navigate(`/${activeVault}/${encodedPath}`)
+                  }}
                   onContextMenu={(event) => {
                     if (!onNoteContextMenu) return
                     event.preventDefault()
                     onNoteContextMenu({ path: note.path, name: note.name, parentPath: note.path.split('/').slice(0, -1).join('/') }, event)
                   }}
-                  >
+                >
                   {note.name}
                 </button>
                 {!integratedMode ? (

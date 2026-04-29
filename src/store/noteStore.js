@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import yaml from 'js-yaml'
-import { createFolder, createNote, deleteFolder, deleteNote, getNote, getNoteTree, renameFolder, renameNote, updateNote } from '../api/noteApi'
+import { createFolder, createNote, deleteFolder, deleteNote, getNote, getNoteTree, moveFolder, moveNote, renameFolder, renameNote, updateNote } from '../api/noteApi'
 import { parseFrontmatter } from '../utils/markdownUtils'
 import { getVaultMeta, updateVaultMeta } from '../api/vaultApi'
 import { toSafePathSegment } from '../utils/fileUtils'
@@ -23,7 +23,7 @@ function findFolderByPath(node, targetPath) {
 
 function flattenNotePaths(node) {
   if (!node || typeof node !== 'object') return []
-  const notes = Array.isArray(node.notes) ? node.notes : Array.isArray(node.files) ? node.files : []
+  const notes = Array.isArray(node.notes) ? node.notes : []
   const ownNotes = notes.map((note) => note.path)
   const childFolders = Array.isArray(node.folders) ? node.folders : []
   return childFolders.reduce((all, folder) => [...all, ...flattenNotePaths(folder)], ownNotes)
@@ -34,7 +34,7 @@ function normalizeNoteTree(node) {
     return { name: 'Root', path: '', folders: [], notes: [] }
   }
 
-  const notes = Array.isArray(node.notes) ? node.notes : Array.isArray(node.files) ? node.files : []
+  const notes = Array.isArray(node.notes) ? node.notes : []
   const folders = Array.isArray(node.folders) ? node.folders.map(normalizeNoteTree) : []
 
   return {
@@ -53,6 +53,7 @@ function getFallbackNoteIndexEntry(notePath) {
     content: '',
     updatedAt: '',
     createdAt: '',
+    frontmatter: {},
   }
 }
 
@@ -104,6 +105,9 @@ export const useNoteStore = create((set, get) => ({
   setActiveNote: (notePath) => {
     set({ activeNotePath: notePath })
   },
+  setActiveNoteFromUrl: (notePath) => {
+    set({ activeNotePath: notePath })
+  },
   updateEditorContent: (content) => {
     set({ activeNoteContent: content, saveStatus: 'idle' })
   },
@@ -129,7 +133,24 @@ export const useNoteStore = create((set, get) => ({
 
     set({ saveStatus: 'saving', error: '' })
     try {
-      await updateNote(activeVault, activeNotePath, activeNoteContent)
+      // Parse frontmatter to get title
+      const parsed = parseFrontmatter(activeNoteContent)
+      const title = parsed.frontmatter?.title
+
+      // If title exists and differs from filename, rename the file
+      if (title) {
+        const currentFilename = activeNotePath.split('/').pop().replace(/\.md$/i, '')
+        const safeTitle = toSafePathSegment(title)
+        if (safeTitle && safeTitle !== currentFilename) {
+          const folderPath = activeNotePath.split('/').slice(0, -1).join('/')
+          const newPath = folderPath ? `${folderPath}/${safeTitle}.md` : `${safeTitle}.md`
+          await renameNote(activeVault, activeNotePath, title)
+          set({ activeNotePath: newPath })
+          await get().loadNoteTreeForVault(activeVault)
+        }
+      }
+
+      await updateNote(activeVault, get().activeNotePath, activeNoteContent)
       set({ saveStatus: 'saved', lastSavedContent: activeNoteContent })
     } catch (error) {
       set({
@@ -179,16 +200,19 @@ export const useNoteStore = create((set, get) => ({
         notePaths.map(async (notePath) => {
           try {
             const noteData = await getNote(vaultName, notePath)
-            const parsed = parseFrontmatter(noteData.content ?? '')
-            const updatedAt = parsed.frontmatter?.updated_at ?? ''
-            const createdAt = parsed.frontmatter?.created_at ?? ''
+            const resolvedPath = noteData.data?.path ?? notePath
+            const content = noteData.data?.content ?? ''
+            const parsed = parseFrontmatter(content)
+            const updatedAt = parsed.frontmatter?.updated_at ?? parsed.frontmatter?.updated ?? ''
+            const createdAt = parsed.frontmatter?.created_at ?? parsed.frontmatter?.created ?? ''
             return {
-              path: notePath,
-              title: parsed.frontmatter?.title || notePath.split('/').pop()?.replace(/\.md$/i, '') || notePath,
+              path: resolvedPath,
+              title: parsed.frontmatter?.title || resolvedPath.split('/').pop()?.replace(/\.md$/i, '') || resolvedPath,
               tags: Array.isArray(parsed.frontmatter?.tags) ? parsed.frontmatter.tags.map(String) : [],
-              content: parsed.body ?? '',
+              content: content,
               updatedAt,
               createdAt,
+              frontmatter: parsed.frontmatter ?? {},
             }
           } catch (error) {
             console.warn(`Failed to index note "${notePath}". Keeping it in the tree.`, error)
@@ -265,7 +289,22 @@ export const useNoteStore = create((set, get) => ({
     if (!trimmedTitle) return
     const safeStem = toSafePathSegment(trimmedTitle)
     if (!safeStem) return
-    const noteFile = `${safeStem}.md`
+
+    // Generate unique filename if note already exists
+    const noteIndex = get().noteIndex
+    const notesInFolder = noteIndex.filter(n => {
+      if (!folderPath) return !n.path.includes('/')
+      return n.path.startsWith(`${folderPath}/`)
+    })
+    const existingNames = notesInFolder.map(n => n.path.split('/').pop())
+
+    let noteFile = `${safeStem}.md`
+    let counter = 1
+    while (existingNames.includes(noteFile)) {
+      noteFile = `${safeStem} (${counter}).md`
+      counter++
+    }
+
     const notePath = folderPath ? `${folderPath}/${noteFile}` : noteFile
     set({ isLoading: true, error: '' })
     try {
@@ -345,6 +384,52 @@ export const useNoteStore = create((set, get) => ({
       set({
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to rename folder',
+      })
+    }
+  },
+  moveNoteByPath: async (vaultName, notePath, targetPath) => {
+    if (!vaultName || !notePath || !targetPath) return
+    set({ isLoading: true, error: '' })
+    try {
+      await moveNote(vaultName, notePath, targetPath)
+      const activeNotePath = get().activeNotePath
+      await get().loadNoteTreeForVault(vaultName)
+      if (activeNotePath === notePath) {
+        const noteName = notePath.split('/').pop()
+        const newPath = targetPath ? `${targetPath}/${noteName}` : noteName
+        await get().openNote(vaultName, newPath)
+      }
+      set({ isLoading: false })
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to move note',
+      })
+    }
+  },
+  moveFolderByPath: async (vaultName, folderPath, targetPath) => {
+    if (!vaultName || !folderPath || !targetPath) return
+    set({ isLoading: true, error: '' })
+    try {
+      await moveFolder(vaultName, folderPath, targetPath)
+      const activeNotePath = get().activeNotePath
+      const selectedFolderPath = get().selectedFolderPath
+      const prefix = `${folderPath}/`
+      await get().loadNoteTreeForVault(vaultName)
+      if (activeNotePath === folderPath || activeNotePath.startsWith(prefix)) {
+        const folderName = folderPath.split('/').pop()
+        const newPrefix = targetPath ? `${targetPath}/${folderName}/` : `${folderName}/`
+        const remappedActive = activeNotePath.replace(prefix, newPrefix)
+        await get().openNote(vaultName, remappedActive)
+      }
+      if (selectedFolderPath === folderPath || selectedFolderPath.startsWith(prefix)) {
+        const folderName = folderPath.split('/').pop()
+        get().setSelectedFolderPath(targetPath ? `${targetPath}/${folderName}` : folderName)
+      }
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to move folder',
       })
     }
   },

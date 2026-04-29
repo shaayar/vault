@@ -413,7 +413,7 @@ const server = http.createServer((req, res) => {
     // Route handling
     if (requestPath === '/api/vaults') {
       if (method === 'GET') {
-        const response = mockAPI['/api/vaults']();
+        const response = mockAPI['GET /api/vaults']();
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(response));
       } else if (method === 'POST') {
@@ -427,7 +427,7 @@ const server = http.createServer((req, res) => {
     } else if (requestPath.startsWith('/api/vaults') && requestPath.endsWith('/notes')) {
       // Get vault tree
       const vault = requestPath.split('/')[3];
-      const response = mockAPI['/api/vaults/:vault/notes'](vault);
+      const response = mockAPI['GET /api/vaults/:vault/notes'](vault);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(response));
     } else if (requestPath.startsWith('/api/vaults/') && requestPath.includes('/notes/') && !requestPath.endsWith('/notes')) {
@@ -449,7 +449,7 @@ const server = http.createServer((req, res) => {
     } else if (requestPath.startsWith('/api/vaults/') && requestPath.endsWith('/meta')) {
       const vault = requestPath.split('/')[3];
       if (method === 'GET') {
-        const response = mockAPI['/api/vaults/:vault/meta'](vault);
+        const response = mockAPI['GET /api/vaults/:vault/meta'](vault);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(response));
       } else if (method === 'PUT') {

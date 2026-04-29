@@ -12,6 +12,9 @@ export const useVaultStore = create((set, get) => ({
   setActiveVault: (vaultName) => {
     set({ activeVault: vaultName })
   },
+  setActiveVaultFromUrl: (vaultName) => {
+    set({ activeVault: vaultName })
+  },
   setVaults: (vaults) => {
     set({ vaults })
   },
@@ -40,12 +43,16 @@ export const useVaultStore = create((set, get) => ({
   createVault: async (vaultName) => {
     set({ isLoading: true, error: '' })
     try {
-      const createdVault = await createVaultRequest(vaultName)
-      set((state) => ({
+      const response = await createVaultRequest(vaultName)
+      const createdVault = response?.name || vaultName
+      // Refresh vaults list to ensure sync with server
+      const refreshedVaults = await getVaults()
+      const normalizedVaults = Array.isArray(refreshedVaults) ? refreshedVaults : []
+      set({
         isLoading: false,
-        vaults: state.vaults.includes(createdVault) ? state.vaults : [...state.vaults, createdVault],
+        vaults: normalizedVaults,
         activeVault: createdVault,
-      }))
+      })
     } catch (error) {
       set({
         isLoading: false,
