@@ -1,4 +1,4 @@
-import { safeFetch, retryFetch, logApiError, showErrorToast, showSuccessToast } from '../utils/errorHandler'
+import { retryFetch, logApiError, showErrorToast, showSuccessToast } from '../utils/errorHandler'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -63,6 +63,23 @@ export async function updateVaultMeta(vaultName, pinnedNotes) {
   } catch (error) {
     logApiError(error, { action: 'updateVaultMeta', vaultName, pinnedNotes })
     showErrorToast(error.getUserMessage?.() || error.message || 'Failed to update vault metadata')
+    throw error
+  }
+}
+
+/**
+ * Delete a vault by name.
+ */
+export async function deleteVault(vaultName) {
+  try {
+    const payload = await retryFetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}`, {
+      method: 'DELETE',
+    })
+    showSuccessToast('Vault deleted successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'deleteVault', vaultName })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to delete vault')
     throw error
   }
 }

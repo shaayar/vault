@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { X, FileText, Plus, Search, Calendar, Hash, Folder, Edit3, Trash2, Copy, Check } from 'lucide-react'
-import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
 
 /**
@@ -15,30 +14,10 @@ export function TemplatesModal({ isOpen, onClose, onCreateFromTemplate }) {
   const [newTemplateName, setNewTemplateName] = useState('')
   const [newTemplateContent, setNewTemplateContent] = useState('')
   const [newTemplateCategory, setNewTemplateCategory] = useState('custom')
-  const [isEditingTemplate, setIsEditingTemplate] = useState(false)
 
   const { activeVault } = useVaultStore()
 
-  useEffect(() => {
-    if (isOpen) {
-      loadTemplates()
-    }
-  }, [isOpen])
-
-  useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape)
-      return () => document.removeEventListener('keydown', handleEscape)
-    }
-  }, [isOpen, onClose])
-
-  const loadTemplates = () => {
+  const loadTemplates = useCallback(() => {
     // Default templates
     const defaultTemplates = [
       {
@@ -292,13 +271,33 @@ export function TemplatesModal({ isOpen, onClose, onCreateFromTemplate }) {
     const customTemplates = JSON.parse(localStorage.getItem('vaultnote:templates') || '[]')
     
     setTemplates([...defaultTemplates, ...customTemplates])
-  }
+  }, [])
+
+  useEffect(() => {
+    if (isOpen) {
+      const timeoutId = window.setTimeout(loadTemplates, 0)
+      return () => window.clearTimeout(timeoutId)
+    }
+  }, [isOpen, loadTemplates])
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape)
+      return () => document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isOpen, onClose])
 
   const saveCustomTemplate = () => {
     if (!newTemplateName.trim() || !newTemplateContent.trim()) return
 
     const newTemplate = {
-      id: `custom-${Date.now()}`,
+      id: `custom-${crypto.randomUUID()}`,
       name: newTemplateName,
       category: newTemplateCategory,
       content: newTemplateContent,
@@ -630,7 +629,7 @@ export function TemplatesModal({ isOpen, onClose, onCreateFromTemplate }) {
                     placeholder="Enter template content... Use {{variable}} for placeholders"
                   />
                   <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    Use {{variable}} for placeholders. Available: {{date}}, {{time}}, {{title}}, etc.
+                    {'Use {{variable}} for placeholders. Available: {{date}}, {{time}}, {{title}}, etc.'}
                   </div>
                 </div>
               </div>

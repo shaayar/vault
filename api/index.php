@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 // CORS headers for cross-origin requests
 header('Access-Control-Allow-Origin: *');
@@ -133,8 +135,16 @@ function sanitize_path_segments(string $path): array
     $cleanParts = [];
 
     foreach ($parts as $part) {
-        $cleanPart = sanitize_name($part);
-        if ($cleanPart === '') {
+        $cleanPart = trim($part);
+        if (
+            $cleanPart === ''
+            || $cleanPart === '.'
+            || $cleanPart === '..'
+            || str_contains($cleanPart, "\0")
+            || str_contains($cleanPart, '/')
+            || str_contains($cleanPart, '\\')
+            || preg_match('/[^a-zA-Z0-9_.\-\s\(\)]/', $cleanPart) === 1
+        ) {
             send_json(400, error_response('Invalid path segment'));
         }
         $cleanParts[] = $cleanPart;
@@ -316,12 +326,18 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $scriptName = $_SERVER['SCRIPT_NAME'] ?? '/api/index.php';
 
+// Handle both production (nginx/apache) and dev (php -S) setups
 if (str_starts_with($requestPath, $scriptName)) {
+    // Production: /api/index.php/vaults -> /vaults
     $requestPath = substr($requestPath, strlen($scriptName));
+} elseif (str_starts_with($requestPath, '/api/')) {
+    // Dev with proxy: /api/vaults -> /vaults
+    $requestPath = substr($requestPath, 5); // Remove '/api'
 }
 
 $requestPath = '/' . ltrim($requestPath, '/');
 $segments = array_values(array_filter(explode('/', trim($requestPath, '/')), 'strlen'));
+$segments = array_map('urldecode', $segments); // Decode URL-encoded path segments
 
 if (($segments[0] ?? '') !== 'vaults') {
     send_json(404, error_response('Route not found'));
@@ -374,7 +390,7 @@ if ($method === 'POST' && count($segments) === 1) {
 
     $vaultPath = $vaultRoot . DIRECTORY_SEPARATOR . $vaultName;
     if (file_exists($vaultPath)) {
-        send_json(400, error_response('Vault already exists'));
+        send_json(400, error_response("Vault '{$vaultName}' already exists"));
     }
 
     if (!mkdir($vaultPath, 0775, true) || !is_dir($vaultPath)) {
@@ -394,7 +410,81 @@ if ($method === 'POST' && count($segments) === 1) {
     ];
     file_put_contents($metaPath, json_encode($metaPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
+    // Create a default welcome note
+    $welcomeNotePath = $notesPath . DIRECTORY_SEPARATOR . 'Welcome.md';
+    $welcomeContent = <<<MD
+---
+title: Welcome to VaultNote
+tags: [welcome, getting-started]
+created: {gmdate(DATE_ATOM)}
+---
+
+# Welcome to VaultNote
+
+This is your new vault. Here are some quick tips to get started:
+
+## Creating Notes
+
+- Right-click on folders to create new notes
+- Use the **New note** option in the context menu
+- Notes are stored as Markdown files
+
+## Organizing with Folders
+
+- Create folders to organize your notes
+- Drag and drop to move notes between folders
+- Use the sidebar to navigate your vault
+
+## Wiki Links
+
+- Use `[[Note Name]]` to link to other notes
+- Click on wiki links to navigate between notes
+- The graph view shows all note connections
+
+## Keyboard Shortcuts
+
+- `Ctrl+S` - Save note
+- `Ctrl+E` - Edit mode
+- `Ctrl+P` - Preview mode
+- `Ctrl+Shift+E` - Split view
+- `Ctrl+K` - Search
+- `Ctrl+G` - Graph view
+
+Happy note-taking! 📝
+MD;
+    file_put_contents($welcomeNotePath, $welcomeContent);
+
     send_json(201, success_response($vaultName));
+}
+
+if ($method === 'DELETE' && count($segments) === 2) {
+    $vaultRoot = get_vault_root();
+    $vaultName = sanitize_name($segments[1]);
+    if ($vaultName === '') {
+        send_json(400, error_response('Invalid vault name'));
+    }
+
+    $vaultPath = $vaultRoot . DIRECTORY_SEPARATOR . $vaultName;
+    if (!is_dir($vaultPath)) {
+        send_json(404, error_response("Vault '{$vaultName}' not found"));
+    }
+
+    // Recursively delete vault directory
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($vaultPath, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+
+    foreach ($files as $fileinfo) {
+        $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
+        $todo($fileinfo->getRealPath());
+    }
+
+    if (!rmdir($vaultPath)) {
+        send_json(500, error_response('Failed to delete vault directory'));
+    }
+
+    send_json(200, success_response(['deleted' => $vaultName]));
 }
 
 if ($method === 'GET' && count($segments) === 3 && $segments[2] === 'meta') {
@@ -584,12 +674,23 @@ if ($method === 'POST' && count($segments) === 3 && $segments[2] === 'folders') 
     $folderPath = (string) ($payload['path'] ?? '');
     $targetFolder = resolve_under_notes_root($notesDir, $folderPath, false);
 
+    error_log("Creating folder: notesDir=$notesDir, folderPath=$folderPath, targetFolder=$targetFolder");
+
     if (file_exists($targetFolder)) {
         send_json(400, error_response('Folder already exists'));
     }
 
+    $parentDir = dirname($targetFolder);
+    error_log("Parent dir: $parentDir, exists: " . (is_dir($parentDir) ? 'yes' : 'no'));
+
+    if (!is_dir($parentDir) && !mkdir($parentDir, 0775, true)) {
+        error_log("Failed to create parent directory: $parentDir");
+        send_json(500, error_response('Failed to create parent directory'));
+    }
+
     if (!mkdir($targetFolder, 0775, true) || !is_dir($targetFolder)) {
-        send_json(500, error_response('Failed to create folder'));
+        error_log("Failed to create folder: $targetFolder, error: " . error_get_last()['message'] ?? 'unknown');
+        send_json(500, error_response('Failed to create folder: ' . $targetFolder));
     }
 
     send_json(201, success_response(['path' => $folderPath]));
@@ -635,6 +736,80 @@ if ($method === 'DELETE' && count($segments) >= 4 && $segments[2] === 'folders')
     }
 
     send_json(200, success_response(['path' => $folderPath]));
+}
+
+if ($method === 'POST' && count($segments) >= 4 && $segments[2] === 'notes' && end($segments) === 'move') {
+    $vaultRoot = get_vault_root();
+    $notesDir = get_notes_root($vaultRoot, $segments[1]);
+    $notePath = implode('/', array_slice($segments, 3, -1));
+    $resolvedNote = resolve_under_notes_root($notesDir, $notePath, true);
+
+    if (!is_file($resolvedNote) || !str_ends_with(strtolower($resolvedNote), '.md')) {
+        send_json(404, error_response('Note not found'));
+    }
+
+    $payload = read_json_body();
+    $targetPath = (string) ($payload['targetPath'] ?? '');
+    if ($targetPath === '') {
+        send_json(400, error_response('Target path is required'));
+    }
+
+    $resolvedTarget = resolve_under_notes_root($notesDir, $targetPath, false);
+    $targetDir = dirname($resolvedTarget);
+    $resolvedTargetDir = realpath($targetDir);
+    if ($resolvedTargetDir === false || !is_inside_root($resolvedTargetDir, $notesDir)) {
+        send_json(400, error_response('Invalid target directory'));
+    }
+
+    $noteName = basename($resolvedNote);
+    $finalTarget = $resolvedTargetDir . DIRECTORY_SEPARATOR . $noteName;
+    if (realpath($finalTarget) !== false) {
+        send_json(400, error_response('Target note already exists'));
+    }
+
+    if (!rename($resolvedNote, $finalTarget)) {
+        send_json(500, error_response('Failed to move note'));
+    }
+
+    $newRelativePath = ltrim(str_replace(str_replace('\\', '/', $notesDir), '', str_replace('\\', '/', $finalTarget)), '/');
+    send_json(200, success_response(['path' => $newRelativePath]));
+}
+
+if ($method === 'POST' && count($segments) >= 4 && $segments[2] === 'folders' && end($segments) === 'move') {
+    $vaultRoot = get_vault_root();
+    $notesDir = get_notes_root($vaultRoot, $segments[1]);
+    $folderPath = implode('/', array_slice($segments, 3, -1));
+    $resolvedFolder = resolve_under_notes_root($notesDir, $folderPath, true);
+
+    if (!is_dir($resolvedFolder)) {
+        send_json(404, error_response('Folder not found'));
+    }
+
+    $payload = read_json_body();
+    $targetPath = (string) ($payload['targetPath'] ?? '');
+    if ($targetPath === '') {
+        send_json(400, error_response('Target path is required'));
+    }
+
+    $resolvedTarget = resolve_under_notes_root($notesDir, $targetPath, false);
+    $targetDir = dirname($resolvedTarget);
+    $resolvedTargetDir = realpath($targetDir);
+    if ($resolvedTargetDir === false || !is_inside_root($resolvedTargetDir, $notesDir)) {
+        send_json(400, error_response('Invalid target directory'));
+    }
+
+    $folderName = basename($resolvedFolder);
+    $finalTarget = $resolvedTargetDir . DIRECTORY_SEPARATOR . $folderName;
+    if (realpath($finalTarget) !== false) {
+        send_json(400, error_response('Target folder already exists'));
+    }
+
+    if (!rename($resolvedFolder, $finalTarget)) {
+        send_json(500, error_response('Failed to move folder'));
+    }
+
+    $newRelativePath = ltrim(str_replace(str_replace('\\', '/', $notesDir), '', str_replace('\\', '/', $finalTarget)), '/');
+    send_json(200, success_response(['path' => $newRelativePath]));
 }
 
 if ($method === 'POST' && count($segments) === 4 && $segments[2] === 'images' && $segments[3] === 'upload') {

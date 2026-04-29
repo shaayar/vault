@@ -1,7 +1,8 @@
+import { useRef, useEffect } from 'react'
 import { MDXEditor } from '@mdxeditor/editor'
 import '@mdxeditor/editor/style.css'
 import './mdx-editor-styles.css'
-import { compressImage, shouldCompress, generateImageFilename } from '../../utils/imageUtils'
+import { compressImage, shouldCompress } from '../../utils/imageUtils'
 import { uploadImage } from '../../api/imageApi'
 import { useVaultStore } from '../../store/vaultStore'
 import {
@@ -51,9 +52,19 @@ async function imageUploadHandler(file) {
 }
 
 export function MDXEditorComponent({ value, onChange, isLight, disabled }) {
+  const editorRef = useRef(null)
+
+  // Update editor content when value prop changes
+  useEffect(() => {
+    if (editorRef.current && value !== undefined) {
+      editorRef.current.setMarkdown(value)
+    }
+  }, [value])
+
   return (
-    <div className="h-[500px]">
+    <div className="h-full overflow-y-auto">
       <MDXEditor
+        ref={editorRef}
         markdown={value ?? '# Start typing...'}
         onChange={(v) => onChange?.(v)}
         contentEditableClassName={`prose max-w-none ${isLight

@@ -1,25 +1,54 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Folder, FileText } from 'lucide-react'
-import { useFileExplorerStore } from './fileExplorerStore'
+import { useNoteStore } from '../../store/noteStore'
 import { useDragDrop } from '../../utils/dragDrop'
 import { RenameInput } from './RenameInput'
-import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
-import { formatFileSize, formatRelativeDate } from '../../utils/fileMetadata'
+import { encodeNotePath } from '../../utils/notePath'
 
 export function FileExplorer({ rootId }) {
   const containerRef = useRef(null)
-  const { initializeDragDrop, cleanup } = useDragDrop()
+  const { getNode } = useNoteStore()
+  const { moveNoteByPath, moveFolderByPath } = useNoteStore()
+  const { activeVault } = useVaultStore()
 
+  const { handleDragStart, handleDragOver, handleDragLeave, handleDrop } = useDragDrop({
+    getNode,
+    onMove: async (draggedNode, targetNode) => {
+      if (!activeVault) return
+      const itemName = draggedNode.path.split('/').pop()
+      const targetPath = targetNode.path ? `${targetNode.path}/${itemName}` : itemName
+      if (draggedNode.type === 'note') {
+        await moveNoteByPath(activeVault, draggedNode.path, targetPath)
+      } else if (draggedNode.type === 'folder') {
+        await moveFolderByPath(activeVault, draggedNode.path, targetPath)
+      }
+      // Reinitialize tree after move
+      const { initialize } = useNoteStore.getState()
+      await initialize(activeVault)
+    },
+    onError: (message) => console.error('Drag error:', message),
+    onSuccess: (message) => console.log('Drag success:', message)
+  })
+
+  // Setup drag and drop on container
   useEffect(() => {
     if (!containerRef.current) return
-    initializeDragDrop(containerRef.current)
-    return cleanup
-  }, [])
+    const container = containerRef.current
+    container.addEventListener('dragover', handleDragOver)
+    container.addEventListener('dragleave', handleDragLeave)
+    container.addEventListener('drop', handleDrop)
+    return () => {
+      container.removeEventListener('dragover', handleDragOver)
+      container.removeEventListener('dragleave', handleDragLeave)
+      container.removeEventListener('drop', handleDrop)
+    }
+  }, [handleDragOver, handleDragLeave, handleDrop])
 
   return (
     <div ref={containerRef}>
-      <TreeNode nodeId={rootId} depth={0} />
+      <TreeNode nodeId={rootId} depth={0} handleDragStart={handleDragStart} />
     </div>
   )
 }
@@ -27,25 +56,26 @@ export function FileExplorer({ rootId }) {
 /* =========================
    TREE NODE (RECURSIVE)
 ========================= */
-function TreeNode({ nodeId, depth }) {
+function TreeNode({ nodeId, depth, handleDragStart }) {
   const {
     getNode,
     getChildren,
     isFolder,
     isNote
-  } = useFileExplorerStore()
+  } = useNoteStore()
 
   const node = getNode(nodeId)
   if (!node) return null
 
   if (isFolder(nodeId)) {
     return (
-      <FolderRow node={node} depth={depth}>
+      <FolderRow node={node} depth={depth} handleDragStart={handleDragStart}>
         {getChildren(nodeId).map(childId => (
           <TreeNode
             key={childId}
             nodeId={childId}
             depth={depth + 1}
+            handleDragStart={handleDragStart}
           />
         ))}
       </FolderRow>
@@ -53,7 +83,7 @@ function TreeNode({ nodeId, depth }) {
   }
 
   if (isNote(nodeId)) {
-    return <FileRow node={node} depth={depth} />
+    return <FileRow node={node} depth={depth} handleDragStart={handleDragStart} />
   }
 
   return null
@@ -62,7 +92,7 @@ function TreeNode({ nodeId, depth }) {
 /* =========================
    FOLDER ROW
 ========================= */
-function FolderRow({ node, depth, children }) {
+function FolderRow({ node, depth, children, handleDragStart }) {
   const ref = useRef(null)
 
   const {
@@ -71,14 +101,25 @@ function FolderRow({ node, depth, children }) {
     isEmpty,
     showContextMenu,
     renameNode,
-    stopRenaming
-  } = useFileExplorerStore()
+    stopRenaming,
+    selectNode,
+    isSelected
+  } = useNoteStore()
 
-  const isRenaming = useFileExplorerStore(
+  const isRenaming = useNoteStore(
     s => s.renamingNodeId === node.id
   )
 
   const expanded = isExpanded(node.id)
+  const selected = isSelected(node.id)
+
+  const handleDragEnd = (e) => {
+    e.target.classList.remove('opacity-50')
+  }
+
+  const onDragStart = (e) => {
+    handleDragStart(e, node)
+  }
 
   return (
     <div>
@@ -87,17 +128,29 @@ function FolderRow({ node, depth, children }) {
         ref={ref}
         data-node-id={node.id}
         data-drop-zone={node.id}
+        draggable
+        onDragStart={onDragStart}
+        onDragEnd={handleDragEnd}
         style={{ marginLeft: depth * 16 }}
-        onClick={() => !isEmpty(node.id) && toggleExpand(node.id)}
+        onClick={(e) => {
+          e.stopPropagation()
+          selectNode(node.id)
+          if (!isEmpty(node.id)) {
+            toggleExpand(node.id)
+          }
+        }}
         onContextMenu={(e) => {
           e.preventDefault()
+          e.stopPropagation()
           showContextMenu(node.id, e.clientX, e.clientY)
         }}
         className={`
           flex items-center py-1 px-2 rounded-sm cursor-pointer
-          ${expanded
-            ? 'bg-slate-200 dark:bg-slate-700'
-            : 'hover:bg-slate-200 dark:hover:bg-slate-700'}
+          ${selected
+            ? 'bg-blue-100 text-blue-600'
+            : expanded
+              ? 'bg-slate-200 dark:bg-slate-700'
+              : 'hover:bg-slate-200 dark:hover:bg-slate-700'}
         `}
       >
         <ChevronRight
@@ -133,7 +186,7 @@ function FolderRow({ node, depth, children }) {
               {children}
 
               {/* Stats */}
-              <div className="mt-2 px-2 py-1 text-xs text-slate-400 border-t">
+              {/* <div className="mt-2 px-2 py-1 text-xs text-slate-400 border-t">
                 <div className="flex justify-between">
                   <span>{children.length} items</span>
                   <span>{formatFileSize(0)}</span>
@@ -142,7 +195,7 @@ function FolderRow({ node, depth, children }) {
                   Last updated:{' '}
                   {formatRelativeDate(new Date().toISOString())}
                 </div>
-              </div>
+              </div> */}
             </>
           )}
         </div>
@@ -154,27 +207,40 @@ function FolderRow({ node, depth, children }) {
 /* =========================
    FILE ROW
 ========================= */
-function FileRow({ node, depth }) {
+function FileRow({ node, depth, handleDragStart }) {
+  const navigate = useNavigate()
   const {
     isSelected,
     selectNode,
     showContextMenu,
     renameNode,
     stopRenaming
-  } = useFileExplorerStore()
+  } = useNoteStore()
 
   const activeVault = useVaultStore(s => s.activeVault)
   const openNote = useNoteStore(s => s.openNote)
 
-  const isRenaming = useFileExplorerStore(
+  const isRenaming = useNoteStore(
     s => s.renamingNodeId === node.id
   )
 
   const active = isSelected(node.id)
 
+  const handleDragEnd = (e) => {
+    e.target.classList.remove('opacity-50')
+  }
+
+  const onDragStart = (e) => {
+    handleDragStart(e, node)
+  }
+
   return (
     <div
       data-node-id={node.id}
+      data-drop-zone={node.id}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={handleDragEnd}
       style={{ marginLeft: depth * 16 }}
       onClick={() => {
         selectNode(node.id)
@@ -182,10 +248,13 @@ function FileRow({ node, depth }) {
           // Ensure path has .md extension for API compatibility
           const notePath = node.path.endsWith('.md') ? node.path : `${node.path}.md`
           openNote(activeVault, notePath)
+          const encodedPath = encodeNotePath(notePath)
+          navigate(`/${activeVault}/${encodedPath}`)
         }
       }}
       onContextMenu={(e) => {
         e.preventDefault()
+        e.stopPropagation()
         showContextMenu(node.id, e.clientX, e.clientY)
       }}
       className={`

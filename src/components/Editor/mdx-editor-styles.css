@@ -81,6 +81,10 @@
   color: inherit;
 }
 
+.vaultnote-mdx-editor.dark-theme .mdxeditor-toolbar select {
+  color: rgb(226 232 240);
+}
+
 .vaultnote-mdx-editor.dark-theme .mdxeditor-select-content {
   color: rgb(226 232 240);
   background: rgb(15 23 42);

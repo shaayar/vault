@@ -1,17 +1,23 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
 import { GraphViewModal } from '../GraphViewModal/GraphViewModal'
 import { SearchModal } from '../Search/SearchModal'
 import { ShortcutsModal } from '../Shortcuts/ShortcutsModal'
 import { TemplatesModal } from '../Templates/TemplatesModal'
-import { SquareSplitHorizontal, Share2, ScanEye, FolderTree, Moon, Sun, Menu, NotebookText, Search, Keyboard, FileText, FilePlusCorner } from 'lucide-react';
+import { SquareSplitHorizontal, Share2, ScanEye, FolderTree, Moon, Sun, Menu, NotebookText, Search, Keyboard, FileText, FilePlusCorner, Trash2 } from 'lucide-react';
+
+function getVaultEditorPath(vaultName) {
+  return `/${encodeURIComponent(vaultName)}/`
+}
 
 /**
  * Dashboard header with vault switching, navigation, and controls.
  */
 export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
-  const { vaults, activeVault, isLoading, setActiveVault, createVault } = useVaultStore()
+  const navigate = useNavigate()
+  const { vaults, activeVault, isLoading, setActiveVault, createVault, deleteVault } = useVaultStore()
   const { clearNotesForVaultSwitch, loadNoteTreeForVault } = useNoteStore()
   const editorMode = useNoteStore((state) => state.editorMode)
   const setEditorMode = useNoteStore((state) => state.setEditorMode)
@@ -29,38 +35,44 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
       return
     }
 
-    await createVault(vaultName.trim())
+    const trimmedName = vaultName.trim()
+    if (!trimmedName) return
+
+    const createdVault = await createVault(trimmedName)
+    navigate(getVaultEditorPath(createdVault))
   }
 
-  const handleCreateNote = async () => {
+  const handleDeleteVault = async () => {
     if (!activeVault) {
-      alert('Please select a vault first')
+      alert('No vault selected')
       return
     }
-    const noteTitle = window.prompt('Enter note title:')
-    if (!noteTitle) {
+    if (!window.confirm(`Are you sure you want to delete "${activeVault}"? This will permanently delete all notes in this vault.`)) {
       return
     }
-    await createNote(activeVault, `${noteTitle.trim()}.md`, '')
+    try {
+      await deleteVault(activeVault)
+      navigate('/')
+    } catch (error) {
+      console.error('Failed to delete vault:', error)
+    }
   }
-
 
   return (
     <>
       {/* New Header Design */}
       <header className={`flex items-center justify-between px-8 w-full h-16 ${isLight ? 'bg-linear-to-r from-slate-100 via-white to-slate-100 border-b border-slate-300/50' : 'bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50'} shadow-lg relative`}>
 
-
         <div className="flex items-center gap-8">
           {/* Logo/Brand */}
-          <div className="flex items-center gap-3">
+          <Link className="flex items-center gap-3" to="/">
             <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
               <NotebookText className="text-white text-xl" />
             </div>
             <div>
-              <h1 className={`text-2xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>VaultNote</h1>
+              <h1 className={`text-2xl font-black hidden md:block tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>Vault Note</h1>
             </div>
-          </div>
+          </Link>
 
           {/* Navigation */}
           <nav className="hidden lg:flex items-center gap-1 font-sans tracking-tight">
@@ -158,13 +170,10 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
                   clearNotesForVaultSwitch()
                   if (newVault) {
                     await loadNoteTreeForVault(newVault)
+                    navigate(getVaultEditorPath(newVault))
                   }
                 } catch (error) {
                   console.error('Failed to switch vault:', error)
-                  // Show error toast if available
-                  if (typeof showErrorToast === 'function') {
-                    showErrorToast('Failed to load vault. Please try again.')
-                  }
                 }
               }}
               disabled={isLoading}
@@ -182,6 +191,16 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
                 ))
               )}
             </select>
+            {activeVault && (
+              <button
+                className={`p-1.5 hover:${isLight ? 'bg-red-100' : 'bg-red-900/30'} transition-colors rounded text-red-500 hover:text-red-600`}
+                onClick={handleDeleteVault}
+                disabled={isLoading}
+                title="Delete Vault"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Controls */}
@@ -194,23 +213,15 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
               {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
 
-            <button
-              className="bg-indigo-500 text-white px-3 py-2 rounded-lg font-medium hover:bg-indigo-600 transition-colors flex items-center gap-2"
-              onClick={handleCreateNote}
-              disabled={!activeVault || isLoading}
-              title="Create New Note"
-            >
-              <span className="material-symbols-outlined text-[14px]"> <NotebookText className="w-4 h-4" /> </span>
-              <span className="hidden sm:inline">Note</span>
-            </button>
+
             <button
               className="bg-indigo-500 text-white px-3 py-2 rounded-lg font-medium hover:bg-indigo-600 transition-colors flex items-center gap-2"
               onClick={handleCreateVault}
               disabled={isLoading}
               title="Create New Vault"
             >
-              <span className="material-symbols-outlined text-[14px]"> <FilePlusCorner className="w-4 h-4" /> </span>
-              <span className="hidden sm:inline">Vault</span>
+              <FilePlusCorner className="w-4 h-4" />
+              <span className="hidden md:inline">Vault</span>
             </button>
 
             {/* Mobile Menu */}
@@ -218,7 +229,7 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
               className="lg:hidden p-2 hover:bg-slate-800/50 transition-colors rounded-lg text-slate-400"
               title="Menu"
             >
-              <span className="material-symbols-outlined text-[16px]"> <Menu className="w-4 h-4" /> </span>
+              <Menu className="w-4 h-4" />
             </button>
           </div>
         </div>

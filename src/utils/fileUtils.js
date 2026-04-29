@@ -2,7 +2,12 @@
  * Sanitize user-provided vault, folder, and note names.
  */
 export function sanitizeName(value) {
-  return value.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim()
+  return value
+    .replace(/[^\p{L}0-9_.\-\s()]/gu, '') // allow unicode letters
+    .replace(/\s+/g, ' ')                // normalize spaces
+    .replace(/\.+/g, '.')               // collapse dots
+    .replace(/^\.+/, '')                // no leading dots
+    .trim() || 'untitled'
 }
 
 /**

@@ -1,4 +1,4 @@
-import { safeFetch, retryFetch, logApiError, showErrorToast, showSuccessToast } from '../utils/errorHandler'
+import { retryFetch, logApiError, showErrorToast, showSuccessToast } from '../utils/errorHandler'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -129,7 +129,7 @@ export async function renameNote(vaultName, notePath, newName) {
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newName }),
+        body: JSON.stringify({ name: newName }),
       },
     )
     showSuccessToast('Note renamed successfully')
@@ -151,7 +151,7 @@ export async function renameFolder(vaultName, folderPath, newName) {
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newName }),
+        body: JSON.stringify({ name: newName }),
       },
     )
     showSuccessToast('Folder renamed successfully')
@@ -177,6 +177,50 @@ export async function deleteFolder(vaultName, folderPath) {
   } catch (error) {
     logApiError(error, { action: 'deleteFolder', vaultName, folderPath })
     showErrorToast(error.getUserMessage?.() || error.message || 'Failed to delete folder')
+    throw error
+  }
+}
+
+/**
+ * Move a note to a different folder.
+ */
+export async function moveNote(vaultName, notePath, targetPath) {
+  try {
+    const payload = await retryFetch(
+      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/notes/${encodePath(notePath)}/move`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetPath }),
+      },
+    )
+    showSuccessToast('Note moved successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'moveNote', vaultName, notePath, targetPath })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to move note')
+    throw error
+  }
+}
+
+/**
+ * Move a folder to a different location.
+ */
+export async function moveFolder(vaultName, folderPath, targetPath) {
+  try {
+    const payload = await retryFetch(
+      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders/${encodePath(folderPath)}/move`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetPath }),
+      },
+    )
+    showSuccessToast('Folder moved successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'moveFolder', vaultName, folderPath, targetPath })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to move folder')
     throw error
   }
 }
