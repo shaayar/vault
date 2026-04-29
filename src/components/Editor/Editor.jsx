@@ -131,7 +131,7 @@ export function Editor({ isLight }) {
 
       <div className={`grid flex-1 ${editorMode === 'split' ? 'grid-cols-2' : 'grid-cols-1'}`}>
         {showEditor ? (
-          <div className={`h-screen ${showPreview ? (isLight ? 'border-r border-slate-300' : 'border-r border-slate-700') : ''}`}>
+          <div className={`h-screen overflow-hidden ${showPreview ? (isLight ? 'border-r border-slate-300' : 'border-r border-slate-700') : ''}`}>
             <MDXEditorComponent
               key={activeNotePath}
               value={bodyContent}
@@ -141,7 +141,7 @@ export function Editor({ isLight }) {
           </div>
         ) : null}
         {showPreview ? (
-          <div className={`overflow-auto p-3 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+          <div className={`h-screen overflow-auto p-3 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
             <article
               className={`max-w-none prose ${isLight
                 ? 'prose-slate'

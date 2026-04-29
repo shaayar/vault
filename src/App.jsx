@@ -1,6 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
 import { LandingScreen } from './components/LandingScreen/LandingScreen'
-import { VaultView } from './components/VaultView/VaultView'
 import { AppLayout } from './components/AppLayout/AppLayout'
 import { NotFound } from './components/NotFound/NotFound'
 
@@ -11,7 +10,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingScreen />} />
-      <Route path="/:vaultName" element={<VaultView />} />
+      <Route path="/:vaultName" element={<AppLayout />} />
       <Route path="/:vaultName/*" element={<AppLayout />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

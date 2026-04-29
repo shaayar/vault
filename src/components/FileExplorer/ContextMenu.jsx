@@ -11,7 +11,7 @@ import {
   FolderPlus,
   ChevronRight,
 } from 'lucide-react'
-import { useFileExplorerHelpers } from './fileExplorerStore'
+import { useNoteStore } from '../../store/noteStore'
 
 // Helper to check if node is a folder
 const isFolder = (node) => node?.type === 'folder'
@@ -27,7 +27,7 @@ export function ContextMenu({ nodeId, position, onClose }) {
     deleteNode,
     duplicateNode,
     startRenaming,
-  } = useFileExplorerHelpers()
+  } = useNoteStore()
 
   const node = nodeId ? getNode(nodeId) : null
 

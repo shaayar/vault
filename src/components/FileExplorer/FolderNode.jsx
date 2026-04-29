@@ -1,27 +1,22 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Folder, FileText } from 'lucide-react'
-import { useFileExplorerStore } from './fileExplorerStore'
+import { useNoteStore } from '../../store/noteStore'
 import { useDragDrop } from '../../utils/dragDrop'
 import { RenameInput } from './RenameInput'
-import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
-import { formatFileSize, formatRelativeDate } from '../../utils/fileMetadata'
 import { encodeNotePath } from '../../utils/notePath'
 
 export function FileExplorer({ rootId }) {
   const containerRef = useRef(null)
-  const { getNode } = useFileExplorerStore()
+  const { getNode } = useNoteStore()
   const { moveNoteByPath, moveFolderByPath } = useNoteStore()
   const { activeVault } = useVaultStore()
-  const { rootNodes } = useFileExplorerStore()
 
   const { handleDragStart, handleDragOver, handleDragLeave, handleDrop } = useDragDrop({
     getNode,
     onMove: async (draggedNode, targetNode) => {
       if (!activeVault) return
-      // API uses dirname(targetPath) to get destination directory
-      // So we need to send the full destination path including filename
       const itemName = draggedNode.path.split('/').pop()
       const targetPath = targetNode.path ? `${targetNode.path}/${itemName}` : itemName
       if (draggedNode.type === 'note') {
@@ -30,9 +25,8 @@ export function FileExplorer({ rootId }) {
         await moveFolderByPath(activeVault, draggedNode.path, targetPath)
       }
       // Reinitialize tree after move
-      const { initialize } = useFileExplorerStore.getState()
-      const noteTree = useNoteStore.getState().noteTree
-      await initialize(noteTree, activeVault)
+      const { initialize } = useNoteStore.getState()
+      await initialize(activeVault)
     },
     onError: (message) => console.error('Drag error:', message),
     onSuccess: (message) => console.log('Drag success:', message)
@@ -68,7 +62,7 @@ function TreeNode({ nodeId, depth, handleDragStart }) {
     getChildren,
     isFolder,
     isNote
-  } = useFileExplorerStore()
+  } = useNoteStore()
 
   const node = getNode(nodeId)
   if (!node) return null
@@ -110,9 +104,9 @@ function FolderRow({ node, depth, children, handleDragStart }) {
     stopRenaming,
     selectNode,
     isSelected
-  } = useFileExplorerStore()
+  } = useNoteStore()
 
-  const isRenaming = useFileExplorerStore(
+  const isRenaming = useNoteStore(
     s => s.renamingNodeId === node.id
   )
 
@@ -221,12 +215,12 @@ function FileRow({ node, depth, handleDragStart }) {
     showContextMenu,
     renameNode,
     stopRenaming
-  } = useFileExplorerStore()
+  } = useNoteStore()
 
   const activeVault = useVaultStore(s => s.activeVault)
   const openNote = useNoteStore(s => s.openNote)
 
-  const isRenaming = useFileExplorerStore(
+  const isRenaming = useNoteStore(
     s => s.renamingNodeId === node.id
   )
 

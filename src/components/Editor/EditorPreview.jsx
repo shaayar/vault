@@ -11,7 +11,7 @@ function transformWikiLinks(markdown) {
 /**
  * Editor preview pane with markdown rendering and backlinks
  */
-export function EditorPreview({ bodyContent, noteIndex, activeNotePath, activeVault, openNote, isLight }) {
+export function EditorPreview({ bodyContent, noteIndex, activeVault, openNote, isLight }) {
   const markdownWithInternalLinks = transformWikiLinks(bodyContent || '')
 
   return (

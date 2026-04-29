@@ -410,7 +410,81 @@ if ($method === 'POST' && count($segments) === 1) {
     ];
     file_put_contents($metaPath, json_encode($metaPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
+    // Create a default welcome note
+    $welcomeNotePath = $notesPath . DIRECTORY_SEPARATOR . 'Welcome.md';
+    $welcomeContent = <<<MD
+---
+title: Welcome to VaultNote
+tags: [welcome, getting-started]
+created: {gmdate(DATE_ATOM)}
+---
+
+# Welcome to VaultNote
+
+This is your new vault. Here are some quick tips to get started:
+
+## Creating Notes
+
+- Right-click on folders to create new notes
+- Use the **New note** option in the context menu
+- Notes are stored as Markdown files
+
+## Organizing with Folders
+
+- Create folders to organize your notes
+- Drag and drop to move notes between folders
+- Use the sidebar to navigate your vault
+
+## Wiki Links
+
+- Use `[[Note Name]]` to link to other notes
+- Click on wiki links to navigate between notes
+- The graph view shows all note connections
+
+## Keyboard Shortcuts
+
+- `Ctrl+S` - Save note
+- `Ctrl+E` - Edit mode
+- `Ctrl+P` - Preview mode
+- `Ctrl+Shift+E` - Split view
+- `Ctrl+K` - Search
+- `Ctrl+G` - Graph view
+
+Happy note-taking! 📝
+MD;
+    file_put_contents($welcomeNotePath, $welcomeContent);
+
     send_json(201, success_response($vaultName));
+}
+
+if ($method === 'DELETE' && count($segments) === 2) {
+    $vaultRoot = get_vault_root();
+    $vaultName = sanitize_name($segments[1]);
+    if ($vaultName === '') {
+        send_json(400, error_response('Invalid vault name'));
+    }
+
+    $vaultPath = $vaultRoot . DIRECTORY_SEPARATOR . $vaultName;
+    if (!is_dir($vaultPath)) {
+        send_json(404, error_response("Vault '{$vaultName}' not found"));
+    }
+
+    // Recursively delete vault directory
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($vaultPath, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+
+    foreach ($files as $fileinfo) {
+        $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
+        $todo($fileinfo->getRealPath());
+    }
+
+    if (!rmdir($vaultPath)) {
+        send_json(500, error_response('Failed to delete vault directory'));
+    }
+
+    send_json(200, success_response(['deleted' => $vaultName]));
 }
 
 if ($method === 'GET' && count($segments) === 3 && $segments[2] === 'meta') {

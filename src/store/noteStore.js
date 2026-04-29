@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import yaml from 'js-yaml'
-import { createFolder, createNote, deleteFolder, deleteNote, getNote, getNoteTree, moveFolder, moveNote, renameFolder, renameNote, updateNote } from '../api/noteApi'
+import { createFolder, createNote as createNoteApi, deleteFolder, deleteNote, getNote, getNoteTree, moveFolder, moveNote, renameFolder, renameNote, updateNote } from '../api/noteApi'
 import { parseFrontmatter } from '../utils/markdownUtils'
 import { getVaultMeta, updateVaultMeta } from '../api/vaultApi'
 import { toSafePathSegment } from '../utils/fileUtils'
@@ -16,6 +16,21 @@ function findFolderByPath(node, targetPath) {
   for (const folder of folders) {
     const found = findFolderByPath(folder, targetPath)
     if (found) return found
+  }
+  return null
+}
+
+function findNoteByPath(node, targetPath) {
+  if (!node) return null
+  const notes = Array.isArray(node.notes) ? node.notes : []
+  for (const note of notes) {
+    if (note.path === targetPath) return note
+  }
+  if (node.folders) {
+    for (const folder of node.folders) {
+      const found = findNoteByPath(folder, targetPath)
+      if (found) return found
+    }
   }
   return null
 }
@@ -64,6 +79,19 @@ function buildSafeNoteContent(title, body = '') {
   return `---\n${frontmatter}\n---\n\n${body}`
 }
 
+// Collect all folder IDs (as "folder-{path}" strings) from a tree
+function collectAllFolderIds(node) {
+  const ids = []
+  if (node.folders && Array.isArray(node.folders)) {
+    for (const folder of node.folders) {
+      const folderId = `folder-${folder.path}`
+      ids.push(folderId)
+      ids.push(...collectAllFolderIds(folder))
+    }
+  }
+  return ids
+}
+
 export const useNoteStore = create((set, get) => ({
   noteTree: { name: 'Root', path: '', folders: [], notes: [] },
   selectedFolderPath: '',
@@ -81,6 +109,16 @@ export const useNoteStore = create((set, get) => ({
   pinnedNotes: [],
   recentNotes: [],
   sortMode: 'updated_desc',
+  // File Explorer UI state
+  expandedNodes: new Set(),
+  selectedNodeId: null,
+  renamingNodeId: null,
+  rootNodes: [],
+  contextMenu: {
+    isOpen: false,
+    nodeId: null,
+    position: { x: 0, y: 0 }
+  },
   setEditorMode: (mode) => {
     set({ editorMode: mode })
   },
@@ -109,6 +147,199 @@ export const useNoteStore = create((set, get) => ({
   },
   updateEditorContent: (content) => {
     set({ activeNoteContent: content, saveStatus: 'idle' })
+  },
+  // --- FileExplorer UI actions ---
+  toggleExpand: (nodeId) => {
+    set(state => {
+      const newExpanded = new Set(state.expandedNodes)
+      if (newExpanded.has(nodeId)) {
+        newExpanded.delete(nodeId)
+      } else {
+        newExpanded.add(nodeId)
+      }
+      return { expandedNodes: newExpanded }
+    })
+  },
+  expandAll: () => {
+    const { noteTree } = get()
+    const folderIds = collectAllFolderIds(noteTree)
+    set({ expandedNodes: new Set(folderIds) })
+  },
+  collapseAll: () => {
+    set({ expandedNodes: new Set() })
+  },
+  selectNode: (nodeId) => {
+    set({ selectedNodeId: nodeId })
+  },
+  showContextMenu: (nodeId, x, y) => {
+    set({ contextMenu: { isOpen: true, nodeId, position: { x, y } } })
+  },
+  hideContextMenu: () => {
+    set({ contextMenu: { isOpen: false, nodeId: null, position: { x: 0, y: 0 } } })
+  },
+  startRenaming: (nodeId) => {
+    set({ renamingNodeId: nodeId })
+  },
+  stopRenaming: () => {
+    set({ renamingNodeId: null })
+  },
+  // Initialize file explorer UI nodes from the already-loaded note tree.
+  initialize: () => {
+    const noteTreeData = get().noteTree
+    const folderIds = (noteTreeData.folders || []).map(f => `folder-${f.path}`)
+    const noteIds = (noteTreeData.notes || []).map(n => `note-${n.path}`)
+    set({ rootNodes: [...folderIds, ...noteIds], expandedNodes: new Set(), selectedNodeId: null })
+  },
+  isExpanded: (nodeId) => {
+    return get().expandedNodes.has(nodeId)
+  },
+  isSelected: (nodeId) => {
+    return get().selectedNodeId === nodeId
+  },
+
+  // --- CRUD operations (compatibility layer replacing fileExplorerStore) ---
+  createNode: async (parentId, type, name) => {
+    const vault = useVaultStore.getState().activeVault
+    if (!vault) throw new Error('No active vault')
+
+    const parentPath = parentId ? parentId.replace(/^folder-/, '') : ''
+    if (type === 'note') {
+      await get().createNoteInFolder(vault, parentPath, name)
+    } else if (type === 'folder') {
+      await get().createFolderInFolder(vault, parentPath, name)
+    } else {
+      throw new Error('Invalid node type')
+    }
+
+    // Expand parent folder if it's a folder
+    if (parentId) {
+      get().toggleExpand(parentId)
+    }
+  },
+
+  deleteNode: async (nodeId) => {
+    const vault = useVaultStore.getState().activeVault
+    if (!vault) throw new Error('No active vault')
+
+    const node = get().getNode(nodeId)
+    if (!node) throw new Error('Node not found')
+
+    if (node.type === 'note') {
+      await get().deleteNoteByPath(vault, node.path)
+    } else if (node.type === 'folder') {
+      await get().deleteFolderByPath(vault, node.path)
+    }
+  },
+
+  renameNode: async (nodeId, newName) => {
+    const vault = useVaultStore.getState().activeVault
+    if (!vault) throw new Error('No active vault')
+
+    const node = get().getNode(nodeId)
+    if (!node) throw new Error('Node not found')
+
+    if (node.type === 'note') {
+      await get().renameNoteByPath(vault, node.path, newName)
+    } else if (node.type === 'folder') {
+      await get().renameFolderByPath(vault, node.path, newName)
+    }
+  },
+
+  duplicateNode: async (nodeId, newParentId = null, newName = null) => {
+    const vault = useVaultStore.getState().activeVault
+    if (!vault) throw new Error('No active vault')
+    const sourceNode = get().getNode(nodeId)
+    if (!sourceNode) throw new Error('Source node not found')
+
+    const targetParentId = newParentId || sourceNode.parentId
+    const targetParentPath = targetParentId ? targetParentId.replace(/^folder-/, '') : ''
+
+    if (sourceNode.type === 'note') {
+      // Fetch original note content
+      const noteData = await getNote(vault, sourceNode.path)
+        const content = noteData.data?.content || ''
+        const baseName = newName || sourceNode.name.replace(/\.md$/i, '') + ' (copy)'
+        const fullBase = baseName.endsWith('.md') ? baseName : baseName + '.md'
+
+      // Ensure unique filename in target folder
+      let uniqueName = fullBase
+      let counter = 1
+      const candidatePath = (p) => p ? `${p}/${uniqueName}` : uniqueName
+      while (get().noteIndex.some(n => n.path === candidatePath(targetParentPath))) {
+        uniqueName = `${baseName.replace(/\.md$/i, '')} (${counter}).md`
+        counter++
+      }
+
+      const newPath = candidatePath(targetParentPath)
+      await createNoteApi(vault, newPath, content)
+      await get().loadNoteTreeForVault(vault)
+    } else if (sourceNode.type === 'folder') {
+      throw new Error('Folder duplication not yet implemented')
+    }
+  },
+
+    // --- Helper methods ---
+    getNode: (nodeId) => {
+      // nodeId format: "folder-{path}" or "note-{path}"
+      const parts = nodeId.split('-', 2)
+      if (parts.length < 2) return null
+      const [type, path] = [parts[0], parts[1]]
+      const tree = get().noteTree
+
+      if (type === 'folder') {
+        const folder = findFolderByPath(tree, path)
+        if (!folder) return null
+        return {
+          id: nodeId,
+          type: 'folder',
+          name: folder.name || path.split('/').pop(),
+          path: folder.path,
+          parentId: folder.path.includes('/') ? `folder-${folder.path.split('/').slice(0,-1).join('/')}` : null,
+          folders: folder.folders,
+          notes: folder.notes,
+        }
+      } else if (type === 'note') {
+        const note = findNoteByPath(tree, path)
+        if (!note) return null
+        return {
+          id: nodeId,
+          type: 'note',
+          name: note.title || path.split('/').pop(),
+          path: note.path,
+          parentId: (() => {
+            const parts = path.split('/')
+            return parts.length > 1 ? `folder-${parts.slice(0,-1).join('/')}` : null
+          })(),
+        }
+      }
+      return null
+    },
+  getChildren: (parentId) => {
+    // parentId format: "folder-{path}" or null/empty for root
+    const parentPath = parentId ? parentId.replace(/^folder-/, '') : ''
+    const parentNode = parentPath ? findFolderByPath(get().noteTree, parentPath) : get().noteTree
+    if (!parentNode) return []
+
+    const children = []
+    if (parentNode.folders && Array.isArray(parentNode.folders)) {
+      parentNode.folders.forEach(f => children.push(`folder-${f.path}`))
+    }
+    if (parentNode.notes && Array.isArray(parentNode.notes)) {
+      parentNode.notes.forEach(n => children.push(`note-${n.path}`))
+    }
+    return children
+  },
+  isFolder: (nodeId) => {
+    const node = get().getNode(nodeId)
+    return node && node.type === 'folder'
+  },
+  isNote: (nodeId) => {
+    const node = get().getNode(nodeId)
+    return node && node.type === 'note'
+  },
+  isEmpty: (nodeId) => {
+    const children = get().getChildren(nodeId)
+    return children.length === 0
   },
   fetchNoteTree: async () => {
     set({ isLoading: true, error: '' })
@@ -174,6 +405,15 @@ export const useNoteStore = create((set, get) => ({
       pinnedNotes: [],
       recentNotes: [],
       sortMode: 'updated_desc',
+      rootNodes: [],
+      expandedNodes: new Set(),
+      selectedNodeId: null,
+      renamingNodeId: null,
+      contextMenu: {
+        isOpen: false,
+        nodeId: null,
+        position: { x: 0, y: 0 },
+      },
       error: '',
     })
   },
@@ -260,64 +500,79 @@ export const useNoteStore = create((set, get) => ({
       })
     }
   },
-  openNote: async (vaultName, notePath) => {
-    if (!vaultName || !notePath) return
-    set({ isLoading: true, error: '' })
-    try {
-      const note = await getNote(vaultName, notePath)
-      const currentRecent = get().recentNotes.filter((path) => path !== (note.data?.path ?? notePath))
-      const nextRecent = [note.data?.path ?? notePath, ...currentRecent].slice(0, 10)
-      window.localStorage.setItem(`vaultnote:recent:${vaultName}`, JSON.stringify(nextRecent))
-      set({
-        activeNotePath: note.data?.path ?? notePath,
-        activeNoteContent: note.data?.content ?? '',
-        lastSavedContent: note.data?.content ?? '',
-        recentNotes: nextRecent,
-        saveStatus: 'idle',
-        isLoading: false,
-      })
-    } catch (error) {
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to open note',
-      })
-    }
-  },
-  createNoteInFolder: async (vaultName, folderPath, noteTitle) => {
-    const trimmedTitle = noteTitle.trim()
-    if (!trimmedTitle) return
-    const safeStem = toSafePathSegment(trimmedTitle)
-    if (!safeStem) return
+   openNote: async (vaultName, notePath) => {
+     if (!vaultName || !notePath) return
+     set({ isLoading: true, error: '' })
+     try {
+       const note = await getNote(vaultName, notePath)
+       const currentRecent = get().recentNotes.filter((path) => path !== (note.data?.path ?? notePath))
+       const nextRecent = [note.data?.path ?? notePath, ...currentRecent].slice(0, 10)
+       window.localStorage.setItem(`vaultnote:recent:${vaultName}`, JSON.stringify(nextRecent))
+       set({
+         activeNotePath: note.data?.path ?? notePath,
+         activeNoteContent: note.data?.content ?? '',
+         lastSavedContent: note.data?.content ?? '',
+         recentNotes: nextRecent,
+         saveStatus: 'idle',
+         isLoading: false,
+       })
+     } catch (error) {
+       set({
+         isLoading: false,
+         error: error instanceof Error ? error.message : 'Failed to open note',
+       })
+     }
+   },
 
-    // Generate unique filename if note already exists
-    const noteIndex = get().noteIndex
-    const notesInFolder = noteIndex.filter(n => {
-      if (!folderPath) return !n.path.includes('/')
-      return n.path.startsWith(`${folderPath}/`)
-    })
-    const existingNames = notesInFolder.map(n => n.path.split('/').pop())
+   // Create a note directly (used by Header)
+   createNote: async (vaultName, notePath, content) => {
+     set({ isLoading: true, error: '' })
+     try {
+       await createNoteApi(vaultName, notePath, content)
+       await get().loadNoteTreeForVault(vaultName)
+       set({ isLoading: false })
+     } catch (error) {
+       set({
+         isLoading: false,
+         error: error instanceof Error ? error.message : 'Failed to create note',
+       })
+     }
+   },
+   createNoteInFolder: async (vaultName, folderPath, noteTitle) => {
+     const trimmedTitle = noteTitle.trim()
+     if (!trimmedTitle) return
+     const safeStem = toSafePathSegment(trimmedTitle)
+     if (!safeStem) return
 
-    let noteFile = `${safeStem}.md`
-    let counter = 1
-    while (existingNames.includes(noteFile)) {
-      noteFile = `${safeStem} (${counter}).md`
-      counter++
-    }
+     // Generate unique filename if note already exists
+     const noteIndex = get().noteIndex
+     const notesInFolder = noteIndex.filter(n => {
+       if (!folderPath) return !n.path.includes('/')
+       return n.path.startsWith(`${folderPath}/`)
+     })
+     const existingNames = notesInFolder.map(n => n.path.split('/').pop())
 
-    const notePath = folderPath ? `${folderPath}/${noteFile}` : noteFile
-    set({ isLoading: true, error: '' })
-    try {
-      const created = await createNote(vaultName, notePath, buildSafeNoteContent(trimmedTitle))
-      await get().loadNoteTreeForVault(vaultName)
-      await get().openNote(vaultName, created?.path ?? notePath)
-      set({ saveStatus: 'saved' })
-    } catch (error) {
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to create note',
-      })
-    }
-  },
+     let noteFile = `${safeStem}.md`
+     let counter = 1
+     while (existingNames.includes(noteFile)) {
+       noteFile = `${safeStem} (${counter}).md`
+       counter++
+     }
+
+     const notePath = folderPath ? `${folderPath}/${noteFile}` : noteFile
+     set({ isLoading: true, error: '' })
+     try {
+       const created = await createNoteApi(vaultName, notePath, buildSafeNoteContent(trimmedTitle))
+       await get().loadNoteTreeForVault(vaultName)
+       await get().openNote(vaultName, created?.path ?? notePath)
+       set({ saveStatus: 'saved' })
+     } catch (error) {
+       set({
+         isLoading: false,
+         error: error instanceof Error ? error.message : 'Failed to create note',
+       })
+     }
+   },
   createFolderInFolder: async (vaultName, currentFolderPath, folderName) => {
     const trimmedFolder = folderName.trim()
     const safeFolder = toSafePathSegment(trimmedFolder)

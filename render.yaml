@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: vaultnote-api
+    env: php
+    plan: free
+    buildCommand: echo "No build needed for PHP"
+    startCommand: php -S 0.0.0.0:8000 -t . api/index.php
+    envVars:
+      - key: APP_ENV
+        value: production
+    disk:
+      name: vaults
+      mountPath: /opt/render/project/vaults
+      sizeGB: 10

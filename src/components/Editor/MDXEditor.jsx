@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react'
 import { MDXEditor } from '@mdxeditor/editor'
 import '@mdxeditor/editor/style.css'
 import './mdx-editor-styles.css'
-import { compressImage, shouldCompress, generateImageFilename } from '../../utils/imageUtils'
+import { compressImage, shouldCompress } from '../../utils/imageUtils'
 import { uploadImage } from '../../api/imageApi'
 import { useVaultStore } from '../../store/vaultStore'
 import {
@@ -62,7 +62,7 @@ export function MDXEditorComponent({ value, onChange, isLight, disabled }) {
   }, [value])
 
   return (
-    <div className="h-[500px] overflow-y-auto">
+    <div className="h-full overflow-y-auto">
       <MDXEditor
         ref={editorRef}
         markdown={value ?? '# Start typing...'}

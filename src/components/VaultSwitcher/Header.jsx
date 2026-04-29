@@ -6,14 +6,18 @@ import { GraphViewModal } from '../GraphViewModal/GraphViewModal'
 import { SearchModal } from '../Search/SearchModal'
 import { ShortcutsModal } from '../Shortcuts/ShortcutsModal'
 import { TemplatesModal } from '../Templates/TemplatesModal'
-import { SquareSplitHorizontal, Share2, ScanEye, FolderTree, Moon, Sun, Menu, NotebookText, Search, Keyboard, FileText, FilePlusCorner } from 'lucide-react';
+import { SquareSplitHorizontal, Share2, ScanEye, FolderTree, Moon, Sun, Menu, NotebookText, Search, Keyboard, FileText, FilePlusCorner, Trash2 } from 'lucide-react';
+
+function getVaultEditorPath(vaultName) {
+  return `/${encodeURIComponent(vaultName)}/`
+}
 
 /**
  * Dashboard header with vault switching, navigation, and controls.
  */
 export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
   const navigate = useNavigate()
-  const { vaults, activeVault, isLoading, setActiveVault, createVault } = useVaultStore()
+  const { vaults, activeVault, isLoading, setActiveVault, createVault, deleteVault } = useVaultStore()
   const { clearNotesForVaultSwitch, loadNoteTreeForVault } = useNoteStore()
   const editorMode = useNoteStore((state) => state.editorMode)
   const setEditorMode = useNoteStore((state) => state.setEditorMode)
@@ -32,22 +36,27 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
     }
 
     const trimmedName = vaultName.trim()
-    await createVault(trimmedName)
-    navigate(`/${trimmedName}`)
+    if (!trimmedName) return
+
+    const createdVault = await createVault(trimmedName)
+    navigate(getVaultEditorPath(createdVault))
   }
 
-  const handleCreateNote = async () => {
+  const handleDeleteVault = async () => {
     if (!activeVault) {
-      alert('Please select a vault first')
+      alert('No vault selected')
       return
     }
-    const noteTitle = window.prompt('Enter note title:')
-    if (!noteTitle) {
+    if (!window.confirm(`Are you sure you want to delete "${activeVault}"? This will permanently delete all notes in this vault.`)) {
       return
     }
-    await createNote(activeVault, `${noteTitle.trim()}.md`, '')
+    try {
+      await deleteVault(activeVault)
+      navigate('/')
+    } catch (error) {
+      console.error('Failed to delete vault:', error)
+    }
   }
-
 
   return (
     <>
@@ -161,14 +170,10 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
                   clearNotesForVaultSwitch()
                   if (newVault) {
                     await loadNoteTreeForVault(newVault)
-                    navigate(`/${newVault}`)
+                    navigate(getVaultEditorPath(newVault))
                   }
                 } catch (error) {
                   console.error('Failed to switch vault:', error)
-                  // Show error toast if available
-                  if (typeof showErrorToast === 'function') {
-                    showErrorToast('Failed to load vault. Please try again.')
-                  }
                 }
               }}
               disabled={isLoading}
@@ -186,6 +191,16 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
                 ))
               )}
             </select>
+            {activeVault && (
+              <button
+                className={`p-1.5 hover:${isLight ? 'bg-red-100' : 'bg-red-900/30'} transition-colors rounded text-red-500 hover:text-red-600`}
+                onClick={handleDeleteVault}
+                disabled={isLoading}
+                title="Delete Vault"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Controls */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, FileText, Folder, Hash, Calendar, Filter } from 'lucide-react'
 import { useNoteStore } from '../../store/noteStore'
@@ -16,6 +16,7 @@ export function SearchModal({ isOpen, onClose }) {
   const [isSearching, setIsSearching] = useState(false)
   const [selectedResult, setSelectedResult] = useState(null)
   const searchInputRef = useRef(null)
+  const searchTimeoutRef = useRef(null)
 
   const noteIndex = useNoteStore((state) => state.noteIndex)
   const openNote = useNoteStore((state) => state.openNote)
@@ -43,32 +44,31 @@ export function SearchModal({ isOpen, onClose }) {
   }, [isOpen, onClose])
 
   // Advanced search implementation
-  const performSearch = useMemo(
-    () => {
-      let timeout
-      return async (searchQuery) => {
-        clearTimeout(timeout)
-        timeout = setTimeout(async () => {
-          if (!searchQuery.trim() || !activeVault) {
-            setResults([])
-            return
-          }
+  const performSearch = useCallback(
+    (searchQuery) => {
+      clearTimeout(searchTimeoutRef.current)
+      searchTimeoutRef.current = setTimeout(async () => {
+        if (!searchQuery.trim() || !activeVault) {
+          setResults([])
+          return
+        }
 
-          setIsSearching(true)
-          try {
-            const searchResults = await searchVaultContent(searchQuery, searchMode, noteIndex)
-            setResults(searchResults)
-          } catch (error) {
-            console.error('Search failed:', error)
-            setResults([])
-          } finally {
-            setIsSearching(false)
-          }
-        }, 300)
-      }
+        setIsSearching(true)
+        try {
+          const searchResults = await searchVaultContent(searchQuery, searchMode, noteIndex)
+          setResults(searchResults)
+        } catch (error) {
+          console.error('Search failed:', error)
+          setResults([])
+        } finally {
+          setIsSearching(false)
+        }
+      }, 300)
     },
     [activeVault, noteIndex, searchMode],
   )
+
+  useEffect(() => () => clearTimeout(searchTimeoutRef.current), [])
 
   // Update search when query or mode changes
   useEffect(() => {

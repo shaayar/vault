@@ -124,19 +124,12 @@ export function useMobileMenu() {
   const [isOpen, setIsOpen] = useState(false)
   const { isMobile } = useResponsive()
 
-  useEffect(() => {
-    // Close mobile menu when switching to desktop
-    if (!isMobile) {
-      setIsOpen(false)
-    }
-  }, [isMobile])
-
   const toggle = () => setIsOpen(!isOpen)
   const close = () => setIsOpen(false)
   const open = () => setIsOpen(true)
 
   return {
-    isOpen,
+    isOpen: isMobile && isOpen,
     toggle,
     open,
     close,
@@ -149,28 +142,17 @@ export function useMobileMenu() {
  */
 export function useResponsiveSidebar() {
   const { isMobile, isTablet } = useResponsive()
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isHidden, setIsHidden] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(isTablet)
+  const [isHidden, setIsHidden] = useState(true)
 
-  useEffect(() => {
-    // Auto-hide sidebar on mobile
-    if (isMobile) {
-      setIsHidden(true)
-      setIsCollapsed(false)
-    } else if (isTablet) {
-      setIsHidden(false)
-      setIsCollapsed(true)
-    } else {
-      setIsHidden(false)
-      setIsCollapsed(false)
-    }
-  }, [isMobile, isTablet])
+  const effectiveIsHidden = isMobile ? isHidden : false
+  const effectiveIsCollapsed = isMobile ? false : isCollapsed
 
   const toggle = () => {
     if (isMobile) {
-      setIsHidden(!isHidden)
+      setIsHidden(!effectiveIsHidden)
     } else {
-      setIsCollapsed(!isCollapsed)
+      setIsCollapsed(!effectiveIsCollapsed)
     }
   }
 
@@ -188,8 +170,8 @@ export function useResponsiveSidebar() {
   }
 
   return {
-    isCollapsed,
-    isHidden,
+    isCollapsed: effectiveIsCollapsed,
+    isHidden: effectiveIsHidden,
     toggle,
     show,
     hide,
@@ -202,23 +184,16 @@ export function useResponsiveSidebar() {
  * Hook for responsive panels
  */
 export function useResponsivePanel(defaultWidth = 320, minWidth = 200, maxWidth = 600) {
-  const { isMobile, isTablet } = useResponsive()
+  const { width: viewportWidth, isMobile, isTablet } = useResponsive()
   const [width, setWidth] = useState(defaultWidth)
-  const [isHidden, setIsHidden] = useState(false)
+  const [isHidden, setIsHidden] = useState(true)
 
-  useEffect(() => {
-    // Adjust panel width for mobile/tablet
-    if (isMobile) {
-      setIsHidden(true)
-      setWidth(window.innerWidth - 32) // Full width with padding
-    } else if (isTablet) {
-      setIsHidden(false)
-      setWidth(Math.min(defaultWidth, 280))
-    } else {
-      setIsHidden(false)
-      setWidth(defaultWidth)
-    }
-  }, [isMobile, isTablet, defaultWidth])
+  const responsiveWidth = isMobile
+    ? viewportWidth - 32
+    : isTablet
+      ? Math.min(width, 280)
+      : width
+  const effectiveIsHidden = isMobile ? isHidden : false
 
   const resize = (newWidth) => {
     const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
@@ -228,8 +203,8 @@ export function useResponsivePanel(defaultWidth = 320, minWidth = 200, maxWidth 
   const toggle = () => setIsHidden(!isHidden)
 
   return {
-    width,
-    isHidden,
+    width: responsiveWidth,
+    isHidden: effectiveIsHidden,
     resize,
     toggle,
     isMobile,
@@ -259,7 +234,6 @@ export function useTouchGestures() {
 
     const touch = e.changedTouches[0]
     const deltaX = touch.clientX - startTouch.x
-    const deltaY = touch.clientY - startTouch.y
     const deltaTime = Date.now() - startTouch.time
 
     // Minimum swipe distance and time

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, useCallback } from 'react'
+import React, { useEffect, useRef } from 'react'
 import {
   FilePlus,
   FolderPlus,
@@ -10,10 +10,8 @@ import {
 } from 'lucide-react'
 import { FileExplorer } from './FolderNode'
 import { ContextMenu } from './ContextMenu'
-import { useFileExplorerStore } from './fileExplorerStore'
-import { InteractionManager } from './interactions'
-import { useVaultStore } from '../../store/vaultStore'
 import { useNoteStore } from '../../store/noteStore'
+import { useVaultStore } from '../../store/vaultStore'
 import './Sidebar.css'
 
 /**
@@ -21,12 +19,9 @@ import './Sidebar.css'
  */
 export function Sidebar({ className = '' }) {
   const sidebarRef = useRef(null)
-  const interactionManagerRef = useRef(null)
 
   const {
     rootNodes,
-    nodesById,
-    childrenMap,
     isLoading,
     error,
     initialize,
@@ -37,36 +32,19 @@ export function Sidebar({ className = '' }) {
     hideContextMenu,
     contextMenu,
     selectedNodeId
-  } = useFileExplorerStore()
-
-  // Initialize interactions on mount. Data sync happens below once noteStore is ready.
-  useEffect(() => {
-    if (sidebarRef.current) {
-      interactionManagerRef.current = new InteractionManager(useFileExplorerStore.getState())
-      interactionManagerRef.current.initialize()
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (interactionManagerRef.current) {
-        interactionManagerRef.current.cleanup()
-      }
-    }
-  }, [])
+  } = useNoteStore()
 
   // Re-initialize when vault changes
   const activeVault = useVaultStore((state) => state.activeVault)
   const vaultError = useVaultStore((state) => state.error)
-  const noteTree = useNoteStore((state) => state.noteTree)
-  const noteTreeLoading = useNoteStore((state) => state.isLoading)
   const noteTreeError = useNoteStore((state) => state.error)
+  const noteTree = useNoteStore((state) => state.noteTree)
 
   useEffect(() => {
-    if (activeVault && !noteTreeLoading) {
-      console.log('Sidebar init - activeVault:', activeVault, 'noteTree:', noteTree)
-      initialize(noteTree, activeVault)
+    if (activeVault) {
+      initialize()
     }
-  }, [activeVault, noteTree, noteTreeLoading, initialize])
+  }, [activeVault, noteTree, initialize])
 
   const handleNewNote = () => {
     createNode(selectedNodeId, 'note', 'Untitled Note')
@@ -81,9 +59,7 @@ export function Sidebar({ className = '' }) {
     showContextMenu(null, e.clientX, e.clientY)
   }
 
-  const visibleRootNodes = rootNodes.length === 1 && nodesById[rootNodes[0]]?.path === ''
-    ? childrenMap[rootNodes[0]] ?? []
-    : rootNodes
+  const visibleRootNodes = rootNodes
 
   if (isLoading) {
     return (

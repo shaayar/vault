@@ -16,14 +16,14 @@ export function VaultView() {
   const [isResizing, setIsResizing] = useState(false)
 
   // Responsive hooks
-  const { isMobile, isTablet, breakpoint } = useResponsive()
-  const { isCollapsed: sidebarCollapsed, isHidden: sidebarHidden, toggle: toggleSidebar, show: showSidebar, hide: hideSidebar } = useResponsiveSidebar()
+  const { isMobile } = useResponsive()
+  const { isCollapsed: sidebarCollapsed, isHidden: sidebarHidden, toggle: toggleSidebar } = useResponsiveSidebar()
 
   // Desktop-only state
   const [sidebarWidth, setSidebarWidth] = useState(() => Number(window.localStorage.getItem('vaultnote:sidebarWidth')) || 260)
 
   const { vaults, activeVault, setActiveVault, fetchVaults } = useVaultStore()
-  const { selectedFolderPath, setSelectedFolderPath, notesInFolder, noteTree, loadNoteTreeForVault, clearNotesForVaultSwitch } = useNoteStore()
+  const { selectedFolderPath, loadNoteTreeForVault, clearNotesForVaultSwitch } = useNoteStore()
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
