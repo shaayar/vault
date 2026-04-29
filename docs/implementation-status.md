@@ -4,11 +4,11 @@
 
 | Category | Done | Remaining | Progress |
 |----------|------|-----------|----------|
-| Core Features | 28 | 4 | 88% |
+| Core Features | 30 | 2 | 94% |
 | UI/UX | 9 | 1 | 90% |
 | Technical | 7 | 0 | 100% |
 | Security | 4 | 0 | 100% |
-| **Total** | **48** | **5** | **91%** |
+| **Total** | **50** | **3** | **94%** |
 
 ---
 
@@ -22,8 +22,8 @@
 | List vaults | ✅ Done | API endpoint working |
 | Switch vaults | ✅ Done | Via dropdown in header |
 | Auto-navigate after create | ✅ Done | Added in Header.jsx |
-| Delete vault | ❌ Not Started | No UI or API endpoint |
-| Rename vault | ❌ Not Started | No UI or API endpoint |
+| Delete vault | ✅ Done | With confirmation dialog |
+| Rename vault | ✅ Done | Double-click to rename |
 
 ### File Explorer
 
@@ -100,9 +100,9 @@
 |-------|--------|-------|
 | Delete fileOperations.js | ✅ Done | 87 lines removed |
 | Remove encode/decode exports | ✅ Done | From noteStore.js |
-| Fix files fallback | ✅ Done | treeConverter.js |
+| Delete treeConverter.js | ✅ Done | Replaced with inline tree building |
 | Fix isDescendant bug | ✅ Done | dragDrop.js |
-| Delete treePerformance.js | ❌ Blocked | Sidebar.jsx still uses it |
+| Delete treePerformance.js | ⚠️ Partial | Sidebar.jsx still uses debounce, others removed |
 | Editor.jsx shortcuts | ✅ Done | Verified clean |
 | AppLayout.jsx state | ❌ Not Started | Large refactoring needed |
 | Error handler simplification | ❌ Not Started | Breaking change |
@@ -112,35 +112,39 @@
 ## Known Issues
 
 ### Critical (Need Fix)
+
 1. **Vault creation error message** - Shows generic "already exists" - ✅ Fixed with specific name
 2. **Shortcuts modal crash** - KeyIcon `key` prop reserved - ✅ Fixed
 
 ### Medium Priority
+
 1. **Drag-drop folder edge cases** - Moving parent into child not fully prevented
 2. **Sidebar performance** - treePerformance.js over-engineered but functional
 3. **Mobile layout** - Needs responsive improvements
 
 ### Low Priority
+
 1. **Code splitting** - Editor.jsx too large (360+ lines)
 2. **Error abstraction** - ApiError wrapper adds complexity
-3. **Data format** - treeConverter.js dual format support
+3. **Type safety** - Add TypeScript for better maintainability
 
 ---
 
 ## Next Steps
 
 ### Immediate (This Week)
+
 - [ ] Test vault creation with various names
 - [ ] Verify all modals close with Escape
 - [ ] Test drag-drop thoroughly
 
 ### Short Term (Next 2 Weeks)
-- [ ] Add vault delete functionality
-- [ ] Add vault rename functionality
+
 - [ ] Improve mobile responsiveness
-- [ ] Refactor Sidebar to remove treePerformance dependency
+- [ ] Refactor Sidebar to remove treePerformance dependency (debounce still used)
 
 ### Long Term (Future)
+
 - [ ] Split Editor.jsx into smaller components
 - [ ] Add plugin system
 - [ ] AI integration (settings prepared)
@@ -163,15 +167,17 @@
 ## Architecture Health
 
 ### Good
+
 - Clean separation between API and UI
 - Zustand stores well-organized
 - PHP API security measures in place
 
 ### Needs Work
+
 - Sidebar.jsx has dead code paths (PerformanceMonitor, etc)
 - Editor.jsx monolithic (360+ lines)
 - AppLayout.jsx too much state (40+ pieces)
 
 ---
 
-Last Updated: 2026-04-28
+Last Updated: 2026-04-29 (vault rename added)

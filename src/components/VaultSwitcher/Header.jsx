@@ -17,7 +17,7 @@ function getVaultEditorPath(vaultName) {
  */
 export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
   const navigate = useNavigate()
-  const { vaults, activeVault, isLoading, setActiveVault, createVault, deleteVault } = useVaultStore()
+  const { vaults, activeVault, isLoading, setActiveVault, createVault, deleteVault, renameVault } = useVaultStore()
   const { clearNotesForVaultSwitch, loadNoteTreeForVault } = useNoteStore()
   const editorMode = useNoteStore((state) => state.editorMode)
   const setEditorMode = useNoteStore((state) => state.setEditorMode)
@@ -28,6 +28,8 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false)
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false)
   const [showGraph, setShowGraph] = useState(false)
+  const [isRenamingVault, setIsRenamingVault] = useState(false)
+  const [vaultRenameInput, setVaultRenameInput] = useState('')
 
   const handleCreateVault = async () => {
     const vaultName = window.prompt('Enter a vault name:')
@@ -55,6 +57,35 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
       navigate('/')
     } catch (error) {
       console.error('Failed to delete vault:', error)
+    }
+  }
+
+  const handleVaultDoubleClick = () => {
+    if (!activeVault || isLoading) return
+    setVaultRenameInput(activeVault)
+    setIsRenamingVault(true)
+  }
+
+  const handleVaultRenameSubmit = async () => {
+    if (!vaultRenameInput.trim() || vaultRenameInput.trim() === activeVault) {
+      setIsRenamingVault(false)
+      return
+    }
+    try {
+      await renameVault(activeVault, vaultRenameInput.trim())
+      navigate(getVaultEditorPath(vaultRenameInput.trim()))
+    } catch (error) {
+      console.error('Failed to rename vault:', error)
+    } finally {
+      setIsRenamingVault(false)
+    }
+  }
+
+  const handleVaultRenameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleVaultRenameSubmit()
+    } else if (e.key === 'Escape') {
+      setIsRenamingVault(false)
     }
   }
 
@@ -160,38 +191,62 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode }) {
           {/* Vault Selection */}
           <div className={`flex items-center gap-3 rounded-lg px-3 py-2 ${isLight ? 'bg-slate-200/50' : 'bg-slate-800/30'}`}>
             <FolderTree className="w-4 h-4" />
-            <select
-              className={`bg-transparent font-medium focus:outline-none border-none ${isLight ? 'text-slate-900 focus:text-slate-900' : 'text-slate-200 focus:text-white'}`}
-              value={activeVault}
-              onChange={async (e) => {
-                try {
-                  const newVault = e.target.value
-                  setActiveVault(newVault)
-                  clearNotesForVaultSwitch()
-                  if (newVault) {
-                    await loadNoteTreeForVault(newVault)
-                    navigate(getVaultEditorPath(newVault))
-                  }
-                } catch (error) {
-                  console.error('Failed to switch vault:', error)
-                }
-              }}
-              disabled={isLoading}
-            >
-              {vaults.length === 0 ? (
-                <>
-                  <option value="">Select a vault...</option>
-                  <option value="demo-vault">Demo: Test Vault</option>
-                </>
-              ) : (
-                vaults.map((vault) => (
-                  <option key={vault} value={vault}>
-                    {vault || 'Default Vault'}
-                  </option>
-                ))
-              )}
-            </select>
-            {activeVault && (
+            {isRenamingVault ? (
+              <input
+                type="text"
+                value={vaultRenameInput}
+                onChange={(e) => setVaultRenameInput(e.target.value)}
+                onBlur={handleVaultRenameSubmit}
+                onKeyDown={handleVaultRenameKeyDown}
+                className={`bg-transparent font-medium focus:outline-none border-b ${isLight ? 'border-indigo-500 text-slate-900' : 'border-indigo-400 text-slate-200'} px-1`}
+                autoFocus
+                disabled={isLoading}
+              />
+            ) : (
+              <>
+                <select
+                  className={`bg-transparent font-medium focus:outline-none border-none ${isLight ? 'text-slate-900 focus:text-slate-900' : 'text-slate-200 focus:text-white'}`}
+                  value={activeVault}
+                  onChange={async (e) => {
+                    try {
+                      const newVault = e.target.value
+                      setActiveVault(newVault)
+                      clearNotesForVaultSwitch()
+                      if (newVault) {
+                        await loadNoteTreeForVault(newVault)
+                        navigate(getVaultEditorPath(newVault))
+                      }
+                    } catch (error) {
+                      console.error('Failed to switch vault:', error)
+                    }
+                  }}
+                  disabled={isLoading}
+                >
+                  {vaults.length === 0 ? (
+                    <>
+                      <option value="">Select a vault...</option>
+                      <option value="demo-vault">Demo: Test Vault</option>
+                    </>
+                  ) : (
+                    vaults.map((vault) => (
+                      <option key={vault} value={vault}>
+                        {vault || 'Default Vault'}
+                      </option>
+                    ))
+                  )}
+                </select>
+                {activeVault && (
+                  <span
+                    onDoubleClick={handleVaultDoubleClick}
+                    className={`text-xs px-2 py-0.5 rounded cursor-pointer ${isLight ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200' : 'bg-indigo-900/30 text-indigo-400 hover:bg-indigo-900/50'}`}
+                    title="Double-click to rename vault"
+                  >
+                    {activeVault}
+                  </span>
+                )}
+              </>
+            )}
+            {activeVault && !isRenamingVault && (
               <button
                 className={`p-1.5 hover:${isLight ? 'bg-red-100' : 'bg-red-900/30'} transition-colors rounded text-red-500 hover:text-red-600`}
                 onClick={handleDeleteVault}

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { createVault as createVaultRequest, getVaults, deleteVault as deleteVaultRequest } from '../api/vaultApi'
+import { createVault as createVaultRequest, getVaults, deleteVault as deleteVaultRequest, renameVault as renameVaultRequest } from '../api/vaultApi'
 
 /**
  * Global vault state for listing, selecting, and creating vaults.
@@ -108,6 +108,46 @@ export const useVaultStore = create((set, get) => ({
       set({
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to delete vault',
+      })
+      throw error
+    }
+  },
+
+  renameVault: async (oldName, newName) => {
+    set({ isLoading: true, error: '' })
+    try {
+      const response = await renameVaultRequest(oldName, newName)
+      const renamedVault = response?.name || newName
+      // Refresh vaults list to ensure sync with server
+      try {
+        const refreshedVaults = await getVaults()
+        const normalizedVaults = Array.isArray(refreshedVaults) ? refreshedVaults : []
+        const activeVault = get().activeVault
+        // If renamed vault was active, update to new name
+        const newActiveVault = activeVault === oldName ? renamedVault : activeVault
+        set({
+          isLoading: false,
+          vaults: normalizedVaults,
+          activeVault: newActiveVault,
+        })
+      } catch (refreshError) {
+        // If refresh fails, replace old name with new in existing list
+        console.error('Failed to refresh vaults list after rename:', refreshError)
+        const currentVaults = get().vaults
+        const activeVault = get().activeVault
+        const updatedVaults = currentVaults.map(v => v === oldName ? renamedVault : v)
+        const newActiveVault = activeVault === oldName ? renamedVault : activeVault
+        set({
+          isLoading: false,
+          vaults: updatedVaults,
+          activeVault: newActiveVault,
+        })
+      }
+      return renamedVault
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to rename vault',
       })
       throw error
     }

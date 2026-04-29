@@ -487,6 +487,50 @@ if ($method === 'DELETE' && count($segments) === 2) {
     send_json(200, success_response(['deleted' => $vaultName]));
 }
 
+if ($method === 'PATCH' && count($segments) === 2) {
+    $vaultRoot = get_vault_root();
+    $oldVaultName = sanitize_name($segments[1]);
+    if ($oldVaultName === '') {
+        send_json(400, error_response('Invalid vault name'));
+    }
+
+    $payload = read_json_body();
+    $newVaultName = sanitize_name((string) ($payload['name'] ?? ''));
+    if ($newVaultName === '') {
+        send_json(400, error_response('New vault name is required'));
+    }
+
+    if ($oldVaultName === $newVaultName) {
+        send_json(200, success_response(['name' => $newVaultName]));
+    }
+
+    $oldVaultPath = $vaultRoot . DIRECTORY_SEPARATOR . $oldVaultName;
+    $newVaultPath = $vaultRoot . DIRECTORY_SEPARATOR . $newVaultName;
+
+    if (!is_dir($oldVaultPath)) {
+        send_json(404, error_response("Vault '{$oldVaultName}' not found"));
+    }
+
+    if (is_dir($newVaultPath)) {
+        send_json(400, error_response("Vault '{$newVaultName}' already exists"));
+    }
+
+    if (!rename($oldVaultPath, $newVaultPath)) {
+        send_json(500, error_response('Failed to rename vault'));
+    }
+
+    // Update meta.json with new name
+    $metaPath = $newVaultPath . DIRECTORY_SEPARATOR . 'meta.json';
+    if (is_file($metaPath)) {
+        $metaContent = file_get_contents($metaPath);
+        $meta = json_decode($metaContent, true) ?: [];
+        $meta['name'] = $newVaultName;
+        file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+
+    send_json(200, success_response(['name' => $newVaultName]));
+}
+
 if ($method === 'GET' && count($segments) === 3 && $segments[2] === 'meta') {
     $vaultRoot = get_vault_root();
     $vaultName = sanitize_name($segments[1]);
