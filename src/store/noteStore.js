@@ -8,8 +8,7 @@ import { useVaultStore } from './vaultStore'
 
 /**
  * Global note state for tree/list selection and editor content.
- *
- */
+ **/
 function findFolderByPath(node, targetPath) {
   if (!node) return null
   if ((node.path ?? '') === targetPath) return node
@@ -324,6 +323,47 @@ export const useNoteStore = create((set, get) => ({
     const safeFolder = toSafePathSegment(trimmedFolder)
     if (!safeFolder) return
     const folderPath = currentFolderPath ? `${currentFolderPath}/${safeFolder}` : safeFolder
+
+    // Check if folder already exists in the same parent
+    const noteTree = get().noteTree
+    function findExistingFolder(node, targetPath) {
+      if (!node) return false
+      if (node.path === targetPath) return true
+      if (node.folders && Array.isArray(node.folders)) {
+        return node.folders.some(folder => findExistingFolder(folder, targetPath))
+      }
+      return false
+    }
+
+    if (findExistingFolder(noteTree, folderPath)) {
+      // Generate unique name by appending a counter
+      const parentPath = currentFolderPath || ''
+      const siblingFolders = parentPath
+        ? findFolderByPath(noteTree, parentPath)?.folders || []
+        : noteTree.folders || []
+      const existingNames = siblingFolders.map(f => f.name)
+      let counter = 1
+      let uniqueName = trimmedFolder
+      while (existingNames.includes(uniqueName)) {
+        uniqueName = `${trimmedFolder} (${counter})`
+        counter++
+      }
+      const uniqueSafeFolder = toSafePathSegment(uniqueName)
+      const finalFolderPath = parentPath ? `${parentPath}/${uniqueSafeFolder}` : uniqueSafeFolder
+      set({ isLoading: true, error: '' })
+      try {
+        const created = await createFolder(vaultName, finalFolderPath)
+        await get().loadNoteTreeForVault(vaultName)
+        get().setSelectedFolderPath(created?.path ?? finalFolderPath)
+      } catch (error) {
+        set({
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to create folder',
+        })
+      }
+      return
+    }
+
     set({ isLoading: true, error: '' })
     try {
       const created = await createFolder(vaultName, folderPath)

@@ -147,6 +147,7 @@ function FolderRow({ node, depth, children, handleDragStart }) {
         }}
         onContextMenu={(e) => {
           e.preventDefault()
+          e.stopPropagation()
           showContextMenu(node.id, e.clientX, e.clientY)
         }}
         className={`
@@ -259,6 +260,7 @@ function FileRow({ node, depth, handleDragStart }) {
       }}
       onContextMenu={(e) => {
         e.preventDefault()
+        e.stopPropagation()
         showContextMenu(node.id, e.clientX, e.clientY)
       }}
       className={`

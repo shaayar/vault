@@ -63,6 +63,7 @@ export function Sidebar({ className = '' }) {
 
   useEffect(() => {
     if (activeVault && !noteTreeLoading) {
+      console.log('Sidebar init - activeVault:', activeVault, 'noteTree:', noteTree)
       initialize(noteTree, activeVault)
     }
   }, [activeVault, noteTree, noteTreeLoading, initialize])

@@ -43,13 +43,6 @@ export function ContextMenu({ nodeId, position, onClose }) {
     return () => document.removeEventListener('click', handleClick)
   }, [onClose])
 
-  // Close menu on scroll
-  useEffect(() => {
-    const handleScroll = () => onClose()
-    window.addEventListener('scroll', handleScroll, true)
-    return () => window.removeEventListener('scroll', handleScroll, true)
-  }, [onClose])
-
   // Close menu on Escape key
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -102,7 +95,6 @@ export function ContextMenu({ nodeId, position, onClose }) {
   }
 
   const handleCopyPath = () => {
-    // Copy path to clipboard
     console.log('Copy path not fully implemented yet')
     onClose()
   }
@@ -111,12 +103,25 @@ export function ContextMenu({ nodeId, position, onClose }) {
   const getMenuItems = () => {
     const items = []
 
-    // Create actions - only available when right-clicking on folders or empty space
-    if (!node || (node && node.type === 'folder')) {
-      items.push([
+    // Create actions (New note, New folder) shown for empty space OR when right-clicking a folder
+    // Additionally, Rename folder and Delete are shown in the same group when right-clicking a folder
+    const showCreateSection = !node || node.type === 'folder'
+
+    if (showCreateSection) {
+      const createActions = [
         { icon: Ambulance, label: 'New note', action: handleNewNote },
         { icon: Activity, label: 'New folder', action: handleNewFolder }
-      ])
+      ]
+
+      // Add rename and delete only when right-clicking a folder (not empty space)
+      if (node && node.type === 'folder') {
+        createActions.push(
+          { icon: Edit, label: 'Rename folder', action: handleRename },
+          { icon: Trash2, label: 'Delete', action: handleDelete, isDestructive: true }
+        )
+      }
+
+      items.push(createActions)
     }
 
     if (node) {
@@ -128,16 +133,10 @@ export function ContextMenu({ nodeId, position, onClose }) {
         { icon: Copy, label: 'Duplicate', action: handleDuplicate }
       )
 
-      // Add search for folders only
+      // Folder-only operations
       if (node.type === 'folder') {
         nodeOps.push(
-          { icon: Search, label: 'Search in folder', action: () => { console.log('Search not implemented'); onClose() } }
-        )
-      }
-
-      // Add sub-folder creation for folders only
-      if (node.type === 'folder') {
-        nodeOps.push(
+          { icon: Search, label: 'Search in folder', action: () => { console.log('Search not implemented'); onClose() } },
           { icon: FolderPlus, label: 'New subfolder', action: handleNewSubFolder }
         )
       }
@@ -146,11 +145,13 @@ export function ContextMenu({ nodeId, position, onClose }) {
         items.push(nodeOps)
       }
 
-      // Modify actions
-      items.push([
-        { icon: Edit, label: node.type === 'folder' ? 'Rename folder' : 'Rename file', action: handleRename },
-        { icon: Trash2, label: 'Delete', action: handleDelete, isDestructive: true }
-      ])
+      // Rename and delete for files (not folders, since they're already in create section)
+      if (node.type === 'note') {
+        items.push([
+          { icon: Edit, label: 'Rename file', action: handleRename },
+          { icon: Trash2, label: 'Delete', action: handleDelete, isDestructive: true }
+        ])
+      }
 
       // System actions (copy path)
       items.push([
@@ -210,4 +211,3 @@ export function ContextMenu({ nodeId, position, onClose }) {
     document.body
   )
 }
-
