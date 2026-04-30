@@ -60,6 +60,16 @@
 - [x] Graph view (d3-force visualization)
 - [x] Status bar with save status
 
+### Authentication
+
+- [x] Local authentication system (demo)
+- [x] Login modal with SHA-256 password hashing
+- [x] Signup modal with user registration
+- [x] Protected routes (vault pages require login)
+- [x] Session persistence via localStorage
+- [x] Logout functionality
+- [x] Vault list hidden for unauthenticated users
+
 ### Note Operations
 
 - [x] Sync note filename with title
@@ -73,7 +83,7 @@
 
 ### API
 
-- [x] RESTful PHP API
+- [x] RESTful Node.js Express API
 - [x] JSON response format
 - [x] Path sanitization
 - [x] Directory traversal protection

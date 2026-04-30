@@ -7,7 +7,7 @@ import { RenameInput } from './RenameInput'
 import { useVaultStore } from '../../store/vaultStore'
 import { encodeNotePath } from '../../utils/notePath'
 
-export function FileExplorer({ rootId }) {
+export function FileExplorer({ rootId, animationIndex = 0 }) {
   const containerRef = useRef(null)
   const { getNode } = useNoteStore()
   const { moveNoteByPath, moveFolderByPath } = useNoteStore()
@@ -48,7 +48,7 @@ export function FileExplorer({ rootId }) {
 
   return (
     <div ref={containerRef}>
-      <TreeNode nodeId={rootId} depth={0} handleDragStart={handleDragStart} />
+      <TreeNode nodeId={rootId} depth={0} handleDragStart={handleDragStart} animationIndex={animationIndex} />
     </div>
   )
 }
@@ -56,7 +56,7 @@ export function FileExplorer({ rootId }) {
 /* =========================
    TREE NODE (RECURSIVE)
 ========================= */
-function TreeNode({ nodeId, depth, handleDragStart }) {
+function TreeNode({ nodeId, depth, handleDragStart, animationIndex = 0 }) {
   const {
     getNode,
     getChildren,
@@ -69,13 +69,14 @@ function TreeNode({ nodeId, depth, handleDragStart }) {
 
   if (isFolder(nodeId)) {
     return (
-      <FolderRow node={node} depth={depth} handleDragStart={handleDragStart}>
-        {getChildren(nodeId).map(childId => (
+      <FolderRow node={node} depth={depth} handleDragStart={handleDragStart} animationIndex={animationIndex}>
+        {getChildren(nodeId).map((childId, childIndex) => (
           <TreeNode
             key={childId}
             nodeId={childId}
             depth={depth + 1}
             handleDragStart={handleDragStart}
+            animationIndex={animationIndex + childIndex + 1}
           />
         ))}
       </FolderRow>
@@ -83,7 +84,7 @@ function TreeNode({ nodeId, depth, handleDragStart }) {
   }
 
   if (isNote(nodeId)) {
-    return <FileRow node={node} depth={depth} handleDragStart={handleDragStart} />
+    return <FileRow node={node} depth={depth} handleDragStart={handleDragStart} animationIndex={animationIndex} />
   }
 
   return null
@@ -92,7 +93,7 @@ function TreeNode({ nodeId, depth, handleDragStart }) {
 /* =========================
    FOLDER ROW
 ========================= */
-function FolderRow({ node, depth, children, handleDragStart }) {
+function FolderRow({ node, depth, children, handleDragStart, animationIndex = 0 }) {
   const ref = useRef(null)
 
   const {
@@ -131,7 +132,7 @@ function FolderRow({ node, depth, children, handleDragStart }) {
         draggable
         onDragStart={onDragStart}
         onDragEnd={handleDragEnd}
-        style={{ marginLeft: depth * 16 }}
+        style={{ marginLeft: depth * 16, animationDelay: `${animationIndex * 50}ms` }}
         onClick={(e) => {
           e.stopPropagation()
           selectNode(node.id)
@@ -145,7 +146,7 @@ function FolderRow({ node, depth, children, handleDragStart }) {
           showContextMenu(node.id, e.clientX, e.clientY)
         }}
         className={`
-          flex items-center py-1 px-2 rounded-sm cursor-pointer
+          sidebar-node-animate flex items-center py-1 px-2 rounded-sm cursor-pointer
           ${selected
             ? 'bg-blue-100 text-blue-600'
             : expanded
@@ -163,8 +164,8 @@ function FolderRow({ node, depth, children, handleDragStart }) {
         {isRenaming ? (
           <RenameInput
             initialValue={node.name}
-            onSave={(name) => {
-              renameNode(node.id, name)
+            onSave={async (name) => {
+              await renameNode(node.id, name)
               stopRenaming()
             }}
             onCancel={stopRenaming}
@@ -207,7 +208,7 @@ function FolderRow({ node, depth, children, handleDragStart }) {
 /* =========================
    FILE ROW
 ========================= */
-function FileRow({ node, depth, handleDragStart }) {
+function FileRow({ node, depth, handleDragStart, animationIndex = 0 }) {
   const navigate = useNavigate()
   const {
     isSelected,
@@ -241,7 +242,7 @@ function FileRow({ node, depth, handleDragStart }) {
       draggable
       onDragStart={onDragStart}
       onDragEnd={handleDragEnd}
-      style={{ marginLeft: depth * 16 }}
+      style={{ marginLeft: depth * 16, animationDelay: `${animationIndex * 50}ms` }}
       onClick={() => {
         selectNode(node.id)
         if (activeVault && node.path) {
@@ -258,7 +259,7 @@ function FileRow({ node, depth, handleDragStart }) {
         showContextMenu(node.id, e.clientX, e.clientY)
       }}
       className={`
-        flex items-center py-1 px-2 mt-0.5 cursor-pointer
+        sidebar-node-animate flex items-center py-1 px-2 mt-0.5 cursor-pointer
         ${active
           ? 'bg-blue-100 text-blue-600'
           : 'hover:bg-slate-200 dark:hover:bg-slate-700'}
@@ -269,8 +270,8 @@ function FileRow({ node, depth, handleDragStart }) {
       {isRenaming ? (
         <RenameInput
           initialValue={node.name}
-          onSave={(name) => {
-            renameNode(node.id, name)
+          onSave={async (name) => {
+            await renameNode(node.id, name)
             stopRenaming()
           }}
           onCancel={stopRenaming}

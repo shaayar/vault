@@ -94,6 +94,18 @@
 | Deep linking | ✅ Done | URL-based routing |
 | .htaccess security | ✅ Done | Blocks PHP in vaults |
 
+### Authentication
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| useAuth hook | ✅ Done | Centralized auth state |
+| ProtectedRoute | ✅ Done | Route protection |
+| LoginModal | ✅ Done | Sign in form |
+| SignupModal | ✅ Done | User registration |
+| SHA-256 hashing | ✅ Done | Password security |
+| Session persistence | ✅ Done | localStorage |
+| Vault visibility | ✅ Done | Hidden until login |
+
 ### CODE-REVIEW Fixes
 
 | Issue | Status | Notes |
@@ -170,7 +182,7 @@
 
 - Clean separation between API and UI
 - Zustand stores well-organized
-- PHP API security measures in place
+- Node.js API security measures in place
 
 ### Needs Work
 
@@ -180,4 +192,4 @@
 
 ---
 
-Last Updated: 2026-04-29 (vault rename added)
+Last Updated: 2026-04-30 (authentication system added)

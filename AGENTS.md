@@ -4,7 +4,7 @@ Update this file when architecture, API contracts, or major workflows change.
 
 ## Product
 
-**VaultNote** — local-first Markdown notes in the browser, PHP filesystem API, no database. Notes are `.md` under `vaults/{vault}/notes/`; vault metadata in `vaults/{vault}/meta.json`.
+**VaultNote** — local-first Markdown notes in the browser, Node.js filesystem API, no database. Notes are `.md` under `vaults/{vault}/notes/`; vault metadata in `vaults/{vault}/meta.json`.
 
 ## Stack
 
@@ -13,7 +13,8 @@ Update this file when architecture, API contracts, or major workflows change.
 | UI       | React 19, Vite 8, Tailwind 4 ( `@tailwindcss/vite` ), Zustand          |
 | Markdown | `@mdxeditor/editor` (WYSIWYG), `react-markdown`, `remark-gfm`           |
 | YAML     | `js-yaml` via `src/utils/markdownUtils.js`                              |
-| API      | PHP 8+ single entry `api/index.php` ( JSON `{ success, data \| error }` ) |
+| API      | PHP 8+ single entry `api/index.php` OR Node.js Express (`nodejs-backend/`) |
+| Auth     | Local storage with SHA-256 hashing (demo)                                |
 | Icons    | `lucide-react`                                                           |
 | Graph    | `d3-force` for visualization                                            |
 | Host     | Shared PHP (no Node server in prod)                                      |
@@ -80,6 +81,7 @@ Path rules: sanitized segments, `realpath` boundary under `vaults/`.
 - Destructive actions: `window.confirm` before delete vault/note (where applicable).
 - Theme: `localStorage` key `vaultnote:theme` (`dark`|`light`); `document.documentElement.classList` toggles `light`.
 - Panel widths: `vaultnote:sidebarWidth`, `vaultnote:noteListWidth`.
+- Auth: `localStorage` keys `vaultnote:user` (username), `vaultnote:users` (user registry with hashed passwords).
 
 ## Wiki links
 
@@ -100,12 +102,9 @@ npm run lint
 
 ## Phase 3 (current)
 
+- **Authentication**: Local auth system with `useAuth` hook, `ProtectedRoute` component. Users stored in localStorage with SHA-256 hashing. Vault routes protected; redirects to landing if not logged in.
 - **Backlinks**: preview pane “Referenced by” uses `findBacklinks()` in `src/utils/wikiLinks.js`.
 - **Graph**: `GraphViewModal` + `d3-force` simulation; opened from Editor **Graph** button.
 - **Optional AI**: not implemented; add settings + user-supplied API key if needed.
 
-## Hosting note
-
-- Apache rewrite may be required so `/api/*` maps to `api/index.php` on some shared hosts.
-
-When picking up work: read `api/index.php` route order, then the Zustand store, then the component that owns the UX.
+When picking up work: read `nodejs-backend/src/index.js` route order, then the Zustand store, then the component that owns the UX.

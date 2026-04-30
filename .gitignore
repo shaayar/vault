@@ -28,3 +28,4 @@ vaults
 demo.html
 # Local Netlify folder
 .netlify
+dist/

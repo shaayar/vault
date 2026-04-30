@@ -109,7 +109,7 @@ export function Sidebar({ className = '' }) {
       tabIndex={0} // Make focusable for keyboard navigation
     >
       {/* Sidebar Header */}
-      <header className="p-3 flex flex-col gap-3">
+      <header className="p-3 flex flex-col gap-3 sidebar-header-animate">
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Explorer
@@ -154,19 +154,20 @@ export function Sidebar({ className = '' }) {
       </header>
 
       {/* Navigation Tree */}
-      <nav className="flex-1 overflow-y-auto px-2 py-1" onContextMenu={handleContextMenu}>
+      <nav className="flex-1 overflow-y-auto px-2 py-1 sidebar-animate-enter" onContextMenu={handleContextMenu}>
         <div className="space-y-0.5">
-          {visibleRootNodes.map(nodeId => (
+          {visibleRootNodes.map((nodeId, index) => (
             <FileExplorer
               key={nodeId}
               rootId={nodeId}
+              animationIndex={index}
             />
           ))}
         </div>
       </nav>
 
       {/* Workspace Footer */}
-      <footer className="mt-auto border-t border-slate-200 dark:border-slate-700 p-2">
+      <footer className="mt-auto border-t border-slate-200 dark:border-slate-700 p-2 sidebar-footer-animate">
         <div className="flex items-center justify-between p-2 rounded-sm bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors cursor-pointer group">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-sm bg-slate-600 dark:bg-slate-400 flex items-center justify-center text-[10px] font-bold text-white dark:text-slate-900 uppercase tracking-tighter">
