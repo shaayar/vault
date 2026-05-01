@@ -183,7 +183,55 @@
 1. Navigate directly to `/#/vault-name/path/to/Note.md`
 2. **Expected**: Vault loads, note opens in editor with content
 
-#### Test 24: URL Encoding
+---
+
+### Authentication Tests
+
+#### Test 24: Unauthenticated Access
+
+1. Navigate to `http://localhost:5173/any-vault`
+2. **Expected**: Redirected to landing page
+3. **Check**: Vault list is not visible
+
+#### Test 25: Sign Up
+
+1. Click "Sign Up" button on landing page
+2. Enter username, email, password
+3. **Expected**: Account created, logged in automatically
+4. **Check**: "Welcome, {username}" displayed
+5. **Check**: Vault list now visible
+
+#### Test 26: Sign In
+
+1. Click "Sign In" button
+2. Enter existing username and password
+3. **Expected**: Logged in, vaults visible
+
+#### Test 27: Sign In with Wrong Password
+
+1. Click "Sign In" button
+2. Enter correct username, wrong password
+3. **Expected**: Error message "Invalid username or password"
+
+#### Test 28: Logout
+
+1. While logged in, click "Log out"
+2. **Expected**: Logged out, vault list hidden
+3. **Check**: Auth buttons reappear
+
+#### Test 29: Session Persistence
+
+1. Sign in to account
+2. Refresh page
+3. **Expected**: Still logged in, vaults visible
+
+#### Test 30: Duplicate Username Prevention
+
+1. Sign up with username "testuser"
+2. Try signing up again with "testuser"
+3. **Expected**: Error message "Username already exists"
+
+#### Test 31: URL Encoding
 
 1. Create note with spaces: "My Test Note.md"
 2. Check URL → **Expected**: Encoded as `My%20Test%20Note.md`
@@ -201,8 +249,8 @@ npm test
 ### API Tests
 
 ```bash
-# Run PHP API tests
-php api/index.test.mjs
+# Run Node.js API tests
+cd nodejs-backend && npm test
 ```
 
 ### E2E Testing (suggested)

@@ -3,14 +3,15 @@ import React, { useRef, useEffect } from 'react'
 /**
  * RenameInput Component - Inline editing input
  */
-export function RenameInput({ 
-  initialValue = '', 
-  onSave, 
+export function RenameInput({
+  initialValue = '',
+  onSave,
   onCancel,
-  className = '' 
+  className = ''
 }) {
   const inputRef = useRef(null)
-  
+  const hasSavedRef = useRef(false)
+
   useEffect(() => {
     // Focus and select text when mounted
     if (inputRef.current) {
@@ -18,31 +19,32 @@ export function RenameInput({
       inputRef.current.select()
     }
   }, [])
-  
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      const newValue = inputRef.current?.value?.trim()
-      if (newValue && newValue !== initialValue) {
-        onSave?.(newValue)
-      } else {
-        onCancel?.()
-      }
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      onCancel?.()
-    }
-  }
-  
-  const handleBlur = () => {
+
+  const handleSave = () => {
+    if (hasSavedRef.current) return
     const newValue = inputRef.current?.value?.trim()
     if (newValue && newValue !== initialValue) {
+      hasSavedRef.current = true
       onSave?.(newValue)
     } else {
       onCancel?.()
     }
   }
-  
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSave()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      onCancel?.()
+    }
+  }
+
+  const handleBlur = () => {
+    handleSave()
+  }
+
   return (
     <input
       ref={inputRef}

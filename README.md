@@ -27,7 +27,7 @@ A local-first, file-based note-taking application with a clean three-panel works
 - **Markdown**: MDXEditor (WYSIWYG), react-markdown, remark-gfm
 - **Icons**: lucide-react
 - **Graph Visualization**: d3-force
-- **Backend**: Plain PHP (no framework)
+- **Backend**: Node.js Express
 - **Storage**: Filesystem (vaults directory)
 
 ## Project Structure
@@ -103,28 +103,19 @@ npm run build
 
 ### Production
 
-Configure your web server to serve:
-
-- `dist/` — Vite build output (frontend)
-- `api/index.php` — PHP API
-
-Example with PHP built-in server:
-
 ```bash
-# Terminal 1: Serve API
-php -S localhost:8000 -t api api/index.php
+# Build frontend
+npm run build
 
-# Terminal 2: Serve frontend
-npm run dev -- --port 3000
+# Start backend in production mode
+cd nodejs-backend && npm start
 ```
-
-Or configure nginx/Apache to route `/api` to PHP and everything else to the static frontend.
 
 ## Vault Storage
 
 Each vault is a directory under `vaults/`:
 
-```
+```text
 vaults/
 └── MyVault/
     ├── meta.json
@@ -169,21 +160,21 @@ Link between notes using the `[[Note Name]]` syntax. The link will resolve to no
 
 | Method   | Path                                   | Description                      |
 |----------|----------------------------------------|----------------------------------|
-| GET      | `/api/vaults`                          | List all vaults                  |
-| POST     | `/api/vaults`                          | Create a vault                   |
-| GET      | `/api/vaults/:vault/meta`              | Get vault metadata               |
-| PUT      | `/api/vaults/:vault/meta`              | Update vault metadata            |
-| GET      | `/api/vaults/:vault/notes`             | Get note tree                    |
-| GET      | `/api/vaults/:vault/notes/*`           | Get note content                 |
-| POST     | `/api/vaults/:vault/notes/*`           | Create a note                    |
-| PUT      | `/api/vaults/:vault/notes/*`           | Update a note                    |
-| DELETE   | `/api/vaults/:vault/notes/*`           | Delete a note                    |
-| PATCH    | `/api/vaults/:vault/notes/*`           | Rename a note                    |
-| POST     | `/api/vaults/:vault/folders`           | Create a folder                  |
-| DELETE   | `/api/vaults/:vault/folders/*`         | Delete a folder                  |
-| PATCH    | `/api/vaults/:vault/folders/*`         | Rename a folder                  |
-| POST     | `/api/vaults/:vault/images/upload`     | Upload image (max 10MB)          |
-| DELETE   | `/api/vaults/:vault/images/:filename`  | Delete an image                  |
+| GET      | `/vaults`                              | List all vaults                  |
+| POST     | `/vaults`                              | Create a vault                   |
+| GET      | `/vaults/:vault/meta`                  | Get vault metadata               |
+| PUT      | `/vaults/:vault/meta`                  | Update vault metadata            |
+| GET      | `/vaults/:vault/notes`                 | Get note tree                    |
+| GET      | `/vaults/:vault/notes/*`               | Get note content                 |
+| POST     | `/vaults/:vault/notes/*`               | Create a note                    |
+| PUT      | `/vaults/:vault/notes/*`               | Update a note                    |
+| DELETE   | `/vaults/:vault/notes/*`               | Delete a note                    |
+| PATCH    | `/vaults/:vault/notes/*`               | Rename a note                    |
+| POST     | `/vaults/:vault/folders`               | Create a folder                  |
+| DELETE   | `/vaults/:vault/folders/*`             | Delete a folder                  |
+| PATCH    | `/vaults/:vault/folders/*`             | Rename a folder                  |
+| POST     | `/vaults/:vault/images/upload`         | Upload image (max 10MB)          |
+| DELETE   | `/vaults/:vault/images/:filename`      | Delete an image                  |
 
 ## License
 

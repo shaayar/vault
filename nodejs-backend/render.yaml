@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: vaultnote-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: vaults-data
+      mountPath: /opt/render/project/src/vaults
+      sizeGB: 1

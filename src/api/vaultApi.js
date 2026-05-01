@@ -83,3 +83,22 @@ export async function deleteVault(vaultName) {
     throw error
   }
 }
+
+/**
+ * Rename a vault.
+ */
+export async function renameVault(oldName, newName) {
+  try {
+    const payload = await retryFetch(`${API_BASE}/vaults/${encodeURIComponent(oldName)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    })
+    showSuccessToast('Vault renamed successfully')
+    return payload.data
+  } catch (error) {
+    logApiError(error, { action: 'renameVault', oldName, newName })
+    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to rename vault')
+    throw error
+  }
+}

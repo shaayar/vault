@@ -3,14 +3,16 @@
 ## Core Features
 
 ### Vault Management
+
 - [x] Create new vault from header button
 - [x] List all vaults in sidebar
 - [x] Switch between vaults
 - [x] Auto-redirect to vault on creation
-- [ ] Delete vault (not implemented)
-- [ ] Rename vault (not implemented)
+- [x] Delete vault (with confirmation)
+- [x] Rename vault (double-click vault name)
 
 ### File Explorer
+
 - [x] Display folder tree structure
 - [x] Expand/collapse folders
 - [x] Create new note in folder
@@ -25,6 +27,7 @@
 - [x] Drag and drop folders to move (basic)
 
 ### Note Editor
+
 - [x] WYSIWYG markdown editing (MDXEditor)
 - [x] Split view mode (edit + preview)
 - [x] Preview mode only
@@ -39,6 +42,7 @@
 - [x] Backlinks display ("Referenced by")
 
 ### Search
+
 - [x] Global search modal (Ctrl+K)
 - [x] Search by title
 - [x] Search by content
@@ -47,6 +51,7 @@
 - [x] Escape to close
 
 ### UI/UX
+
 - [x] Dark/Light theme toggle
 - [x] Responsive sidebar (resizable panels)
 - [x] Focus mode (distraction-free reading)
@@ -55,7 +60,18 @@
 - [x] Graph view (d3-force visualization)
 - [x] Status bar with save status
 
+### Authentication
+
+- [x] Local authentication system (demo)
+- [x] Login modal with SHA-256 password hashing
+- [x] Signup modal with user registration
+- [x] Protected routes (vault pages require login)
+- [x] Session persistence via localStorage
+- [x] Logout functionality
+- [x] Vault list hidden for unauthenticated users
+
 ### Note Operations
+
 - [x] Sync note filename with title
 - [x] Auto-generate unique filenames on conflicts
 - [x] Image upload (drag & drop)
@@ -66,18 +82,28 @@
 ## Technical Features
 
 ### API
-- [x] RESTful PHP API
+
+- [x] RESTful Node.js Express API
 - [x] JSON response format
 - [x] Path sanitization
 - [x] Directory traversal protection
 - [x] URL encoding for paths with spaces
 
 ### State Management
+
 - [x] Zustand stores (vaultStore, noteStore, fileExplorerStore)
 - [x] URL-based routing for notes
 - [x] Deep linking to specific notes
 
+### Deployment
+
+- [x] Docker support (PHP + Apache)
+- [x] Render.com deployment config
+- [x] Vercel frontend deployment
+- [x] Environment variable configuration
+
 ### Security
+
 - [x] .htaccess blocks PHP in vaults
 - [x] Path validation
 - [x] File type restrictions (.md only)
@@ -86,6 +112,7 @@
 ## Missing/Incomplete Features
 
 ### Planned but Not Implemented
+
 - [ ] Full vault delete with confirmation
 - [ ] Vault rename
 - [ ] Note templates (currently placeholder)
@@ -98,6 +125,7 @@
 - [ ] AI features (settings prepared, not implemented)
 
 ### Known Issues
+
 - [ ] Drag and drop folder moves may have edge cases
 - [ ] Sidebar performance utilities are over-engineered
 - [ ] Error handling could be simplified

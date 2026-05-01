@@ -71,7 +71,7 @@
 .vaultnote-mdx-editor.dark-theme .mdxeditor-toolbar {
   background: rgb(15 23 42);
   border-bottom: 1px solid rgb(51 65 85);
-  color: rgb(226 232 240);
+  /* color: rgb(226 232 240); */
 }
 
 .vaultnote-mdx-editor.dark-theme .mdxeditor-toolbar button,
@@ -93,4 +93,215 @@
 
 .vaultnote-mdx-editor.dark-theme [data-radix-popper-content-wrapper] {
   color: rgb(226 232 240);
+}
+
+/* Dialog Box Styles */
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] {
+  background-color: rgb(15 23 42) !important;
+  border: 1px solid rgb(71 85 105) !important;
+  color: rgb(226 232 240) !important;
+  z-index: 999;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog-overlay {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog-title {
+  color: rgb(248 250 252) !important;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog-close {
+  color: rgb(148 163 184) !important;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog-close:hover {
+  color: rgb(226 232 240) !important;
+}
+
+/* Dialog inputs and fields */
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog input,
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog textarea,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] input,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] textarea {
+  background-color: rgb(30 41 59) !important;
+  border: 1px solid rgb(71 85 105) !important;
+  color: rgb(226 232 240) !important;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog input::placeholder,
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog textarea::placeholder,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] input::placeholder,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] textarea::placeholder {
+  color: rgb(148 163 184) !important;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog input:focus,
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog textarea:focus,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] input:focus,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] textarea:focus {
+  border-color: rgb(99 102 241) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px rgb(99 102 241) !important;
+}
+
+/* Dialog labels */
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog label,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] label {
+  color: rgb(203 213 225) !important;
+}
+
+/* Dialog buttons */
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog button,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] button {
+  background-color: rgb(30 41 59) !important;
+  border: 1px solid rgb(71 85 105) !important;
+  color: rgb(226 232 240) !important;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog button:hover,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] button:hover {
+  background-color: rgb(51 65 85) !important;
+  color: rgb(248 250 252) !important;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog button:disabled,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] button:disabled {
+  background-color: rgb(51 65 85) !important;
+  color: rgb(100 116 139) !important;
+  cursor: not-allowed !important;
+}
+
+/* Primary dialog buttons */
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog button.primary,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] button.primary {
+  background-color: rgb(99 102 241) !important;
+  border-color: rgb(99 102 241) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog button.primary:hover,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] button.primary:hover {
+  background-color: rgb(79 70 229) !important;
+  border-color: rgb(79 70 229) !important;
+}
+
+/* Light Theme Dialog Styles */
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog,
+.vaultnote-mdx-editor.light-theme [role='dialog'] {
+  background-color: rgb(255 255 255) !important;
+  border: 1px solid rgb(203 213 225) !important;
+  color: rgb(15 23 42) !important;
+}
+
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog-overlay {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog-title {
+  color: rgb(15 23 42) !important;
+}
+
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog-close {
+  color: rgb(100 116 139) !important;
+}
+
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog-close:hover {
+  color: rgb(51 65 85) !important;
+}
+
+/* Light theme inputs */
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog input,
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog textarea,
+.vaultnote-mdx-editor.light-theme [role='dialog'] input,
+.vaultnote-mdx-editor.light-theme [role='dialog'] textarea {
+  background-color: rgb(248 250 252) !important;
+  border: 1px solid rgb(203 213 225) !important;
+  color: rgb(15 23 42) !important;
+}
+
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog input::placeholder,
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog textarea::placeholder,
+.vaultnote-mdx-editor.light-theme [role='dialog'] input::placeholder,
+.vaultnote-mdx-editor.light-theme [role='dialog'] textarea::placeholder {
+  color: rgb(100 116 139) !important;
+}
+
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog input:focus,
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog textarea:focus,
+.vaultnote-mdx-editor.light-theme [role='dialog'] input:focus,
+.vaultnote-mdx-editor.light-theme [role='dialog'] textarea:focus {
+  border-color: rgb(99 102 241) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px rgb(99 102 241) !important;
+}
+
+/* Light theme labels */
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog label,
+.vaultnote-mdx-editor.light-theme [role='dialog'] label {
+  color: rgb(51 65 85) !important;
+}
+
+/* Light theme buttons */
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog button,
+.vaultnote-mdx-editor.light-theme [role='dialog'] button {
+  background-color: rgb(248 250 252) !important;
+  border: 1px solid rgb(203 213 225) !important;
+  color: rgb(15 23 42) !important;
+}
+
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog button:hover,
+.vaultnote-mdx-editor.light-theme [role='dialog'] button:hover {
+  background-color: rgb(241 245 249) !important;
+  color: rgb(15 23 42) !important;
+}
+
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog button:disabled,
+.vaultnote-mdx-editor.light-theme [role='dialog'] button:disabled {
+  background-color: rgb(241 245 249) !important;
+  color: rgb(148 163 184) !important;
+  cursor: not-allowed !important;
+}
+
+/* Light theme primary buttons */
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog button.primary,
+.vaultnote-mdx-editor.light-theme [role='dialog'] button.primary {
+  background-color: rgb(99 102 241) !important;
+  border-color: rgb(99 102 241) !important;
+  color: rgb(255 255 255) !important;
+}
+
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog button.primary:hover,
+.vaultnote-mdx-editor.light-theme [role='dialog'] button.primary:hover {
+  background-color: rgb(79 70 229) !important;
+  border-color: rgb(79 70 229) !important;
+}
+
+/* Additional dialog content styling */
+.vaultnote-mdx-editor.dark-theme .mdxeditor-dialog-content,
+.vaultnote-mdx-editor.dark-theme [role='dialog'] .dialog-content {
+  background-color: rgb(15 23 42) !important;
+  color: rgb(226 232 240) !important;
+}
+
+.vaultnote-mdx-editor.light-theme .mdxeditor-dialog-content,
+.vaultnote-mdx-editor.light-theme [role='dialog'] .dialog-content {
+  background-color: rgb(255 255 255) !important;
+  color: rgb(15 23 42) !important;
+}
+
+/* Dropdown/popover styling */
+.vaultnote-mdx-editor.dark-theme [data-radix-popper-content-wrapper] .dropdown-content,
+.vaultnote-mdx-editor.dark-theme [data-radix-popper-content-wrapper] .popover-content {
+  background-color: rgb(15 23 42) !important;
+  border: 1px solid rgb(71 85 105) !important;
+  color: rgb(226 232 240) !important;
+}
+
+.vaultnote-mdx-editor.light-theme [data-radix-popper-content-wrapper] .dropdown-content,
+.vaultnote-mdx-editor.light-theme [data-radix-popper-content-wrapper] .popover-content {
+  background-color: rgb(255 255 255) !important;
+  border: 1px solid rgb(203 213 225) !important;
+  color: rgb(15 23 42) !important;
 }

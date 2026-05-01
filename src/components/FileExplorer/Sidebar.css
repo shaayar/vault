@@ -1,5 +1,61 @@
 /* Sidebar Styles */
 
+/* Entrance animations for sidebar elements */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.sidebar-animate-enter {
+  animation: slideInLeft 0.25s ease-out forwards;
+  animation-fill-mode: both;
+}
+
+.sidebar-header-animate {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.sidebar-footer-animate {
+  animation: fadeIn 0.35s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+/* Staggered delays for tree nodes - applied dynamically via inline styles or classes */
+.sidebar-node-animate {
+  animation: slideInLeft 0.2s ease-out forwards;
+  animation-fill-mode: both;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+
+  .sidebar-animate-enter,
+  .sidebar-header-animate,
+  .sidebar-footer-animate,
+  .sidebar-node-animate {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* File guide lines for nested structure */
 .file-guide {
   position: absolute;

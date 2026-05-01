@@ -1,8 +1,6 @@
-import React, { useRef, useEffect } from 'react'
+import { useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  Ambulance,
-  Activity,
   Copy,
   Search,
   ClipboardPaste,
@@ -10,6 +8,7 @@ import {
   Trash2,
   FolderPlus,
   ChevronRight,
+  FilePlusCorner,
 } from 'lucide-react'
 import { useNoteStore } from '../../store/noteStore'
 
@@ -109,8 +108,8 @@ export function ContextMenu({ nodeId, position, onClose }) {
 
     if (showCreateSection) {
       const createActions = [
-        { icon: Ambulance, label: 'New note', action: handleNewNote },
-        { icon: Activity, label: 'New folder', action: handleNewFolder }
+        { icon: FilePlusCorner, label: 'New note', action: handleNewNote },
+        { icon: FolderPlus, label: 'New folder', action: handleNewFolder }
       ]
 
       // Add rename and delete only when right-clicking a folder (not empty space)

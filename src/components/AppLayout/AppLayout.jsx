@@ -28,10 +28,11 @@ export function AppLayout() {
 
   // Responsive hooks
   const { isMobile } = useResponsive()
-  const { isCollapsed: sidebarCollapsed, isHidden: sidebarHidden } = useResponsiveSidebar()
+  const { isCollapsed: sidebarCollapsed, isHidden: sidebarHidden, toggle: toggleSidebar } = useResponsiveSidebar()
 
   // Desktop-only state
   const [sidebarWidth, setSidebarWidth] = useState(() => Number(window.localStorage.getItem('vaultnote:sidebarWidth')) || 260)
+  const vaults = useVaultStore((state) => state.vaults)
   const activeVault = useVaultStore((state) => state.activeVault)
   const fetchVaults = useVaultStore((state) => state.fetchVaults)
   const setActiveVaultFromUrl = useVaultStore((state) => state.setActiveVaultFromUrl)
@@ -53,9 +54,14 @@ export function AppLayout() {
   // Sync vault from URL
   useEffect(() => {
     if (vaultName) {
-      setActiveVaultFromUrl(vaultName)
+      if (vaults.length > 0 && !vaults.includes(vaultName)) {
+        // Vault doesn't exist, redirect to 404
+        navigate('/404', { replace: true })
+      } else {
+        setActiveVaultFromUrl(vaultName)
+      }
     }
-  }, [vaultName, setActiveVaultFromUrl])
+  }, [vaultName, vaults, setActiveVaultFromUrl, navigate])
 
   // Sync note from URL
   useEffect(() => {
@@ -84,7 +90,6 @@ export function AppLayout() {
   useEffect(() => {
     window.localStorage.setItem('vaultnote:sidebarWidth', String(sidebarWidth))
   }, [sidebarWidth])
-
 
   useEffect(() => {
     window.localStorage.setItem('vaultnote:theme', theme)
@@ -157,6 +162,15 @@ export function AppLayout() {
     window.addEventListener('mouseup', onMouseUp)
   }
 
+  // Show loading state while vaults are being fetched
+  if (vaults.length === 0 && !activeVault) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-slate-400">Loading...</div>
+      </div>
+    )
+  }
+
   return (
     <div className={`bg-surface text-on-surface select-none overflow-hidden h-screen w-screen ${isResizing ? 'resizing' : ''}`}>
       {/* Focus Mode Component */}
@@ -174,19 +188,30 @@ export function AppLayout() {
             onToggleTheme={toggleTheme}
             isLight={isLight}
             onToggleFocusMode={() => setIsFocusMode(!isFocusMode)}
+            onToggleSidebar={toggleSidebar}
+            isMobile={isMobile}
           />
 
           {/* Main Content */}
           <div className="flex flex-1 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 relative">
+            {/* Mobile Sidebar Backdrop */}
+            {isMobile && !sidebarHidden && (
+              <div
+                className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+                onClick={toggleSidebar}
+              />
+            )}
+
             {/* Left Sidebar */}
             {!sidebarHidden && (
               <Sidebar
                 isLight={isLight}
                 isFocusMode={isFocusMode}
                 isCollapsed={sidebarCollapsed}
-                width={isMobile ? '100%' : sidebarWidth}
+                isMobile={isMobile}
+                width={isMobile ? '80%' : sidebarWidth}
                 onResize={!isMobile ? startResize('sidebar') : undefined}
-                className={isMobile ? 'fixed inset-y-0 left-0 w-full z-50' : ''}
+                className={isMobile ? 'fixed inset-y-0 left-0 w-[80%] z-50' : ''}
               />
             )}
 
@@ -201,13 +226,10 @@ export function AppLayout() {
 
             {/* Divider Gutter */}
             {sidebarCollapsed && <div className="w-1 bg-slate-950" />}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-h-[91dvh]">
               <Editor isLight={isLight} />
             </div>
           </div>
-
-          {/* StatusBar */}
-          <StatusBar isLight={isLight} />
         </>
       )}
 
