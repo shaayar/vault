@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { LandingScreen } from './components/LandingScreen/LandingScreen'
 import { AppLayout } from './components/AppLayout/AppLayout'
+import { Dashboard } from './components/Dashboard'
 import { NotFound } from './components/NotFound/NotFound'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
@@ -11,6 +12,11 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingScreen />} />
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      } />
       <Route path="/:vaultName" element={
         <ProtectedRoute>
           <AppLayout />
@@ -21,6 +27,7 @@ function App() {
           <AppLayout />
         </ProtectedRoute>
       } />
+      <Route path="/404" element={<NotFound />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )

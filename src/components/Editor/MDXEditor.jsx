@@ -71,7 +71,7 @@ export function MDXEditorComponent({ value, onChange, isLight, disabled }) {
           ? 'prose-slate text-slate-900'
           : 'prose-invert text-slate-100'
           }`}
-        className={isLight ? 'light-theme vaultnote-mdx-editor' : 'dark-theme vaultnote-mdx-editor'}
+        className={isLight ? 'light-theme vaultnote-mdx-editor' : 'dark-theme vaultnote-mdx-editor min-h-full'}
         readOnly={disabled}
         plugins={[
           headingsPlugin(),

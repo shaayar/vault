@@ -22,17 +22,85 @@ All notable changes to VaultNote are documented in this file.
 
 ---
 
+## 2026-04-30 (Evening)
+
+### Added
+
+- **Mobile sidebar vault controls**: Full vault management (create, delete, rename, switch) now available in mobile sidebar
+- **MDX editor dialog styling**: Comprehensive dark/light theme styling for link and image dialogs to match app theme
+- **Dialog z-index fix**: MDX editor dialogs now properly appear above other UI elements
+
+### Changed
+
+- **StatusBar moved**: StatusBar component moved from AppLayout to Editor component for better component organization
+- **Header mobile optimization**: Vault controls hidden on mobile header, moved to sidebar for better mobile UX
+- **Editor header mobile**: Editor mode indicator hidden on mobile for cleaner interface
+- **AppLayout height**: Editor container height adjusted to `h-auto` for better mobile responsiveness
+
+### Fixed
+
+- **Mobile vault management**: Vault operations now work properly on mobile devices through sidebar controls
+- **Dialog theme consistency**: Link and image dialogs now match app's dark/light theme perfectly
+- **Component organization**: Better separation of concerns with StatusBar in Editor component
+
+---
+
 ## 2026-04-30
 
 ### Added
 
-- Created this changelog file to track daily development changes.
+- **New landing page design** with modern marketing sections:
+  - Hero section with blueprint background pattern and gradient overlay
+  - Marquee section with scrolling feature badges (E2E Encrypted, Markdown-Native, Local-First, Graph-Visualizer, Offline-Sync)
+  - New Bento Grid features with vault badges, graph view placeholder, search bar mockup, and auto-save status indicator
+  - Testimonials carousel with 3 user testimonial cards
+  - Updated Philosophy section with blueprint background and new stats layout
+  - Updated CTA section with gradient blur effect and dashboard navigation
+  - New Footer component with primary color background, massive "VaultNote" branding, and contact email
+- **Dashboard page** (`src/components/Dashboard/`):
+  - New dedicated dashboard for vault management
+  - Header styled after AppLayout with logo, theme toggle, and logout
+  - Vault selection moved from landing page to dashboard
+  - Create vault functionality
+  - Light/dark theme support
+- **New components**:
+  - `Marquee.jsx` - Scrolling feature badges with CSS animation
+  - `Testimonials.jsx` - Testimonial cards with carousel navigation
+  - `BentoGrid.jsx` - Modern bento grid layout for features
+  - `Footer.jsx` - Primary-colored footer with branding
+- **CSS additions**:
+  - Marquee animation (`@keyframes marquee`)
+  - Blueprint background pattern (grid lines)
+- **Routing**: Added `/dashboard` route protected by authentication
+
+### Changed
+
+- Landing page now navigates to `/dashboard` for logged-in users instead of showing vault selection
+- Hero section updated with new styling, version badge, and colored headline span
+- Removed vault selection from landing page (moved to Dashboard)
+- Both old and new bento grid designs are visible on landing page for comparison
+- Problem/Solution section retained for comparison with new design
+- **Mobile editor improvements**:
+  - Split view disabled on mobile screens (< 768px) - defaults to edit mode
+  - Editor/preview containers changed from `h-screen` to `h-full` for proper flex layout
+  - Mobile sidebar toggle button in Header now functional - toggles sidebar visibility
+  - Mobile sidebar width set to 80% of screen (instead of 100%)
+  - Mobile sidebar backdrop added with blur effect - clicking backdrop closes sidebar
+  - Editor now always opens with a note (first available note if none specified in URL)
+
+### Removed
+
+- Vault selection UI from landing page (relocated to Dashboard)
 
 ### Fixed
 
 - URL now updates when renaming/moving notes or folders so the user stays on the correct URL.
   - `renameNoteByPath` - updates URL after renaming the active note
   - `saveActiveNote` - updates URL when auto-renaming from title change
+- Blank page issue when visiting invalid vault URLs - now redirects to 404 page
+- React hooks order violation in AppLayout - moved early return after all hooks
+- Missing `vaults` variable in AppLayout causing reference error
+- Conditional check for `onToggleSidebar` in Header to prevent errors when not provided
   - `renameFolderByPath` - updates URL when parent folder of active note is renamed
   - `moveNoteByPath` - updates URL when active note is moved
   - `moveFolderByPath` - updates URL when parent folder of active note is moved
@@ -59,7 +127,7 @@ All notable changes to VaultNote are documented in this file.
   - Logout functionality available on landing screen
   - Auth state displayed (shows "Welcome, {username}" when logged in)
 
-### Changed
+### Changes
 
 - Added console message in `main.jsx` to show which API server the app is connected to (`VITE_API_BASE_URL` or default `/api`).
 - Documented Node.js backend setup: The project can now run with either PHP (`api/index.php`) or Node.js (`nodejs-backend/`) backend. To use Node.js:

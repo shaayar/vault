@@ -1,4 +1,7 @@
 export { Sidebar } from './Sidebar'
 export { ContextMenu } from './ContextMenu'
-export { FileExplorer } from './FolderNode'
+export { FileExplorer } from './FileExplorer'
+export { TreeNode } from './TreeNode'
+export { FolderRow } from './FolderRow'
+export { FileNode } from './FileNode'
 export { RenameInput } from './RenameInput'

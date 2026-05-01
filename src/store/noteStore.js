@@ -1,97 +1,15 @@
 import { create } from 'zustand'
-import yaml from 'js-yaml'
-import { createFolder, createNote as createNoteApi, deleteFolder, deleteNote, getNote, getNoteTree, moveFolder, moveNote, renameFolder, renameNote, updateNote } from '../api/noteApi'
+import { createNote as createNoteApi, deleteNote, getNote, getNoteTree, moveNote, renameNote, updateNote } from '../api/noteApi'
+import { createFolder, deleteFolder, moveFolder, renameFolder } from '../api/folderApi'
 import { parseFrontmatter } from '../utils/markdownUtils'
 import { getVaultMeta, updateVaultMeta } from '../api/vaultApi'
 import { toSafePathSegment } from '../utils/fileUtils'
 import { useVaultStore } from './vaultStore'
+import { findFolderByPath, findNoteByPath, flattenNotePaths, normalizeNoteTree, getFallbackNoteIndexEntry, buildSafeNoteContent, collectAllFolderIds } from '../utils/treeUtils'
 
 /**
  * Global note state for tree/list selection and editor content.
  **/
-function findFolderByPath(node, targetPath) {
-  if (!node) return null
-  if ((node.path ?? '') === targetPath) return node
-  const folders = Array.isArray(node.folders) ? node.folders : []
-  for (const folder of folders) {
-    const found = findFolderByPath(folder, targetPath)
-    if (found) return found
-  }
-  return null
-}
-
-function findNoteByPath(node, targetPath) {
-  if (!node) return null
-  const notes = Array.isArray(node.notes) ? node.notes : []
-  for (const note of notes) {
-    if (note.path === targetPath) return note
-  }
-  if (node.folders) {
-    for (const folder of node.folders) {
-      const found = findNoteByPath(folder, targetPath)
-      if (found) return found
-    }
-  }
-  return null
-}
-
-function flattenNotePaths(node) {
-  if (!node || typeof node !== 'object') return []
-  const notes = Array.isArray(node.notes) ? node.notes : []
-  const ownNotes = notes.map((note) => note.path)
-  const childFolders = Array.isArray(node.folders) ? node.folders : []
-  return childFolders.reduce((all, folder) => [...all, ...flattenNotePaths(folder)], ownNotes)
-}
-
-function normalizeNoteTree(node) {
-  if (!node || typeof node !== 'object') {
-    return { name: 'Root', path: '', folders: [], notes: [] }
-  }
-
-  const notes = Array.isArray(node.notes) ? node.notes : []
-  const folders = Array.isArray(node.folders) ? node.folders.map(normalizeNoteTree) : []
-
-  return {
-    name: node.name ?? 'Root',
-    path: node.path ?? '',
-    folders,
-    notes,
-  }
-}
-
-function getFallbackNoteIndexEntry(notePath) {
-  return {
-    path: notePath,
-    title: notePath.split('/').pop()?.replace(/\.md$/i, '') || notePath,
-    tags: [],
-    content: '',
-    updatedAt: '',
-    createdAt: '',
-    frontmatter: {},
-  }
-}
-
-function buildSafeNoteContent(title, body = '') {
-  const frontmatter = yaml.dump(
-    { title },
-    { sortKeys: false, lineWidth: -1, noRefs: true, quotingType: '"' },
-  ).trimEnd()
-  return `---\n${frontmatter}\n---\n\n${body}`
-}
-
-// Collect all folder IDs (as "folder-{path}" strings) from a tree
-function collectAllFolderIds(node) {
-  const ids = []
-  if (node.folders && Array.isArray(node.folders)) {
-    for (const folder of node.folders) {
-      const folderId = `folder-${folder.path}`
-      ids.push(folderId)
-      ids.push(...collectAllFolderIds(folder))
-    }
-  }
-  return ids
-}
-
 export const useNoteStore = create((set, get) => ({
   noteTree: { name: 'Root', path: '', folders: [], notes: [] },
   selectedFolderPath: '',
@@ -743,8 +661,8 @@ export const useNoteStore = create((set, get) => ({
         // Update URL to reflect the new path
         const encodedPath = (targetPath ? `${targetPath}/${folderName}` : folderName).split('/').map(encodeURIComponent).join('/')
         window.history.replaceState(null, '', `/${encodeURIComponent(vaultName)}/${encodedPath}`)
-      
-        
+
+
       }
     } catch (error) {
       set({

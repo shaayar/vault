@@ -4,6 +4,7 @@ import { EditorHeader } from './EditorHeader'
 import { EditorTags } from './EditorTags'
 import { EditorPreview } from './EditorPreview'
 import { EditorBacklinks } from './EditorBacklinks'
+import { StatusBar } from '../StatusBar/StatusBar'
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts'
 import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
@@ -54,6 +55,12 @@ export function Editor({ isLight }) {
 
   const showEditor = editorMode === 'edit' || editorMode === 'split'
   const showPreview = editorMode === 'preview' || editorMode === 'split'
+
+  // Force single column on mobile (no split view)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  const effectiveEditorMode = isMobile && editorMode === 'split' ? 'edit' : editorMode
+  const effectiveShowEditor = effectiveEditorMode === 'edit' || effectiveEditorMode === 'split'
+  const effectiveShowPreview = effectiveEditorMode === 'preview' || effectiveEditorMode === 'split'
 
   // Helper to reassemble frontmatter + body
   const assembleContent = (fm, body, delim = '---') => {
@@ -107,7 +114,7 @@ export function Editor({ isLight }) {
   }
 
   return (
-    <section className={`flex flex-col h-full flex-1 ${isLight ? 'bg-white text-slate-900' : 'bg-slate-950 text-slate-100'} relative`}>
+    <section className={`flex flex-col h-full md:h-screen flex-1 ${isLight ? 'bg-white text-slate-900' : 'bg-slate-950 text-slate-100'} relative`}>
       <EditorHeader
         activeVault={activeVault}
         activeNotePath={activeNotePath}
@@ -129,9 +136,9 @@ export function Editor({ isLight }) {
         />
       )}
 
-      <div className={`grid flex-1 ${editorMode === 'split' ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        {showEditor ? (
-          <div className={`h-screen overflow-hidden ${showPreview ? (isLight ? 'border-r border-slate-300' : 'border-r border-slate-700') : ''}`}>
+      <div className={`grid flex-1 ${effectiveEditorMode === 'split' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {effectiveShowEditor ? (
+          <div className={`h-full overflow-hidden ${effectiveShowPreview ? (isLight ? 'border-r border-slate-300' : 'border-r border-slate-700') : ''}`}>
             <MDXEditorComponent
               key={activeNotePath}
               value={bodyContent}
@@ -140,8 +147,8 @@ export function Editor({ isLight }) {
             />
           </div>
         ) : null}
-        {showPreview ? (
-          <div className={`h-screen overflow-auto p-3 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+        {effectiveShowPreview ? (
+          <div className={`h-full overflow-auto p-3 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
             <article
               className={`max-w-none prose ${isLight
                 ? 'prose-slate'
@@ -167,6 +174,9 @@ export function Editor({ isLight }) {
           </div>
         ) : null}
       </div>
+
+      {/* StatusBar */}
+      <StatusBar isLight={isLight} />
     </section>
   )
 }

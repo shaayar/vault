@@ -100,24 +100,6 @@ export async function deleteNote(vaultName, notePath) {
   }
 }
 
-/**
- * Create a folder under notes root.
- */
-export async function createFolder(vaultName, folderPath) {
-  try {
-    const payload = await retryFetch(`${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: folderPath }),
-    })
-    showSuccessToast('Folder created successfully')
-    return payload.data
-  } catch (error) {
-    logApiError(error, { action: 'createFolder', vaultName, folderPath })
-    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to create folder')
-    throw error
-  }
-}
 
 /**
  * Rename a note within its current folder.
@@ -142,46 +124,6 @@ export async function renameNote(vaultName, notePath, newName) {
 }
 
 /**
- * Rename a folder within its current parent folder.
- */
-export async function renameFolder(vaultName, folderPath, newName) {
-  try {
-    const payload = await retryFetch(
-      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders/${encodePath(folderPath)}`,
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName }),
-      },
-    )
-    showSuccessToast('Folder renamed successfully')
-    return payload.data
-  } catch (error) {
-    logApiError(error, { action: 'renameFolder', vaultName, folderPath, newName })
-    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to rename folder')
-    throw error
-  }
-}
-
-/**
- * Delete a folder by relative path.
- */
-export async function deleteFolder(vaultName, folderPath) {
-  try {
-    const payload = await retryFetch(
-      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders/${encodePath(folderPath)}`,
-      { method: 'DELETE' },
-    )
-    showSuccessToast('Folder deleted successfully')
-    return payload.data
-  } catch (error) {
-    logApiError(error, { action: 'deleteFolder', vaultName, folderPath })
-    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to delete folder')
-    throw error
-  }
-}
-
-/**
  * Move a note to a different folder.
  */
 export async function moveNote(vaultName, notePath, targetPath) {
@@ -199,28 +141,6 @@ export async function moveNote(vaultName, notePath, targetPath) {
   } catch (error) {
     logApiError(error, { action: 'moveNote', vaultName, notePath, targetPath })
     showErrorToast(error.getUserMessage?.() || error.message || 'Failed to move note')
-    throw error
-  }
-}
-
-/**
- * Move a folder to a different location.
- */
-export async function moveFolder(vaultName, folderPath, targetPath) {
-  try {
-    const payload = await retryFetch(
-      `${API_BASE}/vaults/${encodeURIComponent(vaultName)}/folders/${encodePath(folderPath)}/move`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetPath }),
-      },
-    )
-    showSuccessToast('Folder moved successfully')
-    return payload.data
-  } catch (error) {
-    logApiError(error, { action: 'moveFolder', vaultName, folderPath, targetPath })
-    showErrorToast(error.getUserMessage?.() || error.message || 'Failed to move folder')
     throw error
   }
 }
