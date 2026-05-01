@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+// Component: Editor
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { MDXEditorComponent } from './MDXEditor'
 import { EditorHeader } from './EditorHeader'
 import { EditorTags } from './EditorTags'
 import { EditorPreview } from './EditorPreview'
 import { EditorBacklinks } from './EditorBacklinks'
-import { StatusBar } from '../StatusBar/StatusBar'
+
+import { GraphViewModal } from '../GraphViewModal/GraphViewModal'
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts'
 import { useNoteStore } from '../../store/noteStore'
 import { useVaultStore } from '../../store/vaultStore'
@@ -20,13 +23,16 @@ export function Editor({ isLight }) {
   const setEditorMode = useNoteStore((state) => state.setEditorMode)
   const activeNotePath = useNoteStore((state) => state.activeNotePath)
   const activeNoteContent = useNoteStore((state) => state.activeNoteContent)
+  const activeNoteTags = useNoteStore((state) => state.activeNoteTags)
   const noteIndex = useNoteStore((state) => state.noteIndex)
   const openNote = useNoteStore((state) => state.openNote)
   const updateEditorContent = useNoteStore((state) => state.updateEditorContent)
+  const setActiveNoteTags = useNoteStore((state) => state.setActiveNoteTags)
   const saveActiveNote = useNoteStore((state) => state.saveActiveNote)
   const saveStatus = useNoteStore((state) => state.saveStatus)
   const activeVault = useVaultStore((state) => state.activeVault)
   const [newTagInput, setNewTagInput] = useState('')
+  const [isGraphOpen, setIsGraphOpen] = useState(false)
 
   // Keyboard shortcuts
   useEditorShortcuts({
@@ -43,18 +49,21 @@ export function Editor({ isLight }) {
     return () => window.clearTimeout(timer)
   }, [activeNoteContent, activeNotePath, saveActiveNote])
 
-  const currentNote = noteIndex.find(n => n.path === activeNotePath)
-  const currentTags = currentNote?.tags || []
+  const currentNote = useMemo(() => noteIndex.find(n => n.path === activeNotePath), [noteIndex, activeNotePath])
+  const currentTags = activeNoteTags || []
+
+  // Debug logging
+  console.log('Editor Debug - activeNoteTags:', activeNoteTags)
+  console.log('Editor Debug - currentTags:', currentTags)
+  console.log('Editor Debug - activeNotePath:', activeNotePath)
 
   // Use frontmatter from noteIndex for faster access, fallback to parsing
-  const frontmatter = currentNote?.frontmatter || {}
+  const frontmatter = useMemo(() => currentNote?.frontmatter || {}, [currentNote])
   // Parse content to separate frontmatter from body (for editor display)
   const parsed = useMemo(() => parseFrontmatter(activeNoteContent || ''), [activeNoteContent])
   const bodyContent = parsed.body
+  console.log('Editor bodyContent length:', bodyContent.length, 'activeNoteContent length:', activeNoteContent?.length)
   const delimiter = parsed.delimiter || '---'
-
-  const showEditor = editorMode === 'edit' || editorMode === 'split'
-  const showPreview = editorMode === 'preview' || editorMode === 'split'
 
   // Force single column on mobile (no split view)
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -83,44 +92,33 @@ export function Editor({ isLight }) {
   }
 
   // Handle editor changes - preserve frontmatter
-  const handleEditorChange = (newBody) => {
+  const handleEditorChange = useCallback((newBody) => {
     updateEditorContent(assembleContent(frontmatter, newBody, delimiter))
-  }
+  }, [updateEditorContent, frontmatter, delimiter])
 
   const addTagToNote = (tagName) => {
     const cleanTag = tagName.trim().toLowerCase().replace(/\s+/g, '-')
     if (!cleanTag || currentTags.includes(cleanTag)) return
 
-    const updatedFrontmatter = {
-      ...frontmatter,
-      tags: [...currentTags, cleanTag]
-    }
-
-    updateEditorContent(assembleContent(updatedFrontmatter, bodyContent, delimiter))
+    const updatedTags = [...currentTags, cleanTag]
+    setActiveNoteTags(updatedTags)
     setNewTagInput('')
   }
 
   const removeTagFromNote = (tagName) => {
-    const updatedFrontmatter = {
-      ...frontmatter,
-      tags: currentTags.filter(t => t !== tagName)
-    }
-
-    if (updatedFrontmatter.tags.length === 0) {
-      delete updatedFrontmatter.tags
-    }
-
-    updateEditorContent(assembleContent(updatedFrontmatter, bodyContent, delimiter))
+    const updatedTags = currentTags.filter(t => t !== tagName)
+    setActiveNoteTags(updatedTags)
   }
 
   return (
-    <section className={`flex flex-col h-full md:h-screen flex-1 ${isLight ? 'bg-white text-slate-900' : 'bg-slate-950 text-slate-100'} relative`}>
+    <section className={`flex flex-col h-full flex-1 overflow-hidden ${isLight ? 'bg-white text-slate-900' : 'bg-slate-950 text-slate-100'} relative`}>
       <EditorHeader
         activeVault={activeVault}
         activeNotePath={activeNotePath}
         saveStatus={saveStatus}
         editorMode={editorMode}
         onSave={() => saveActiveNote()}
+        onOpenGraph={() => setIsGraphOpen(true)}
         isLight={isLight}
       />
 
@@ -136,11 +134,10 @@ export function Editor({ isLight }) {
         />
       )}
 
-      <div className={`grid flex-1 ${effectiveEditorMode === 'split' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      <div className={`grid flex-1 overflow-hidden ${effectiveEditorMode === 'split' ? 'grid-cols-2' : 'grid-cols-1'}`}>
         {effectiveShowEditor ? (
           <div className={`h-full overflow-hidden ${effectiveShowPreview ? (isLight ? 'border-r border-slate-300' : 'border-r border-slate-700') : ''}`}>
             <MDXEditorComponent
-              key={activeNotePath}
               value={bodyContent}
               onChange={handleEditorChange}
               isLight={isLight}
@@ -175,8 +172,15 @@ export function Editor({ isLight }) {
         ) : null}
       </div>
 
-      {/* StatusBar */}
-      <StatusBar isLight={isLight} />
+      {/* Graph View Modal */}
+      <GraphViewModal
+        isOpen={isGraphOpen}
+        onClose={() => setIsGraphOpen(false)}
+        noteIndex={noteIndex}
+        openNote={openNote}
+        activeVault={activeVault}
+        isLight={isLight}
+      />
     </section>
   )
 }

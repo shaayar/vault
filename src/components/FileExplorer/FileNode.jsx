@@ -51,7 +51,7 @@ export function FileNode({ node, depth, handleDragStart, animationIndex = 0 }) {
           const notePath = node.path.endsWith('.md') ? node.path : `${node.path}.md`
           openNote(activeVault, notePath)
           const encodedPath = encodeNotePath(notePath)
-          navigate(`/${activeVault}/${encodedPath}`)
+          navigate(`/${activeVault.id}/${encodedPath}`)
         }
       }}
       onContextMenu={(e) => {

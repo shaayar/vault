@@ -1,7 +1,8 @@
+// Component: Dashboard
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVaultStore } from '../../store/vaultStore'
-import { NotebookText, FilePlusCorner, ArrowRight, Moon, Sun, Terminal, LogOut } from 'lucide-react'
+import { NotebookText, FilePlusCorner, ArrowRight, Moon, Sun, Terminal, LogOut, Trash2 } from 'lucide-react'
 import { LoginModal, SignupModal } from '../Auth'
 
 // Simple hash function for demo purposes (use bcrypt in production)
@@ -15,7 +16,7 @@ async function hashPassword(password) {
 
 export function Dashboard({ theme, onToggleTheme, isLight }) {
   const navigate = useNavigate()
-  const { vaults, activeVault, isLoading, createVault, setActiveVault, fetchVaults } = useVaultStore()
+  const { vaults, activeVault, isLoading, createVault, deleteVault, setActiveVault, fetchVaults } = useVaultStore()
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [isSignupOpen, setIsSignupOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState(() => {
@@ -33,9 +34,26 @@ export function Dashboard({ theme, onToggleTheme, isLight }) {
     await createVault(vaultName.trim())
   }
 
-  const handleSelectVault = (vaultName) => {
-    setActiveVault(vaultName)
-    navigate(`/${vaultName}`)
+  const handleDeleteVault = async (vault) => {
+    if (!window.confirm(`Are you sure you want to delete "${vault.name}"? This will permanently delete all notes and data in this vault.`)) {
+      return
+    }
+
+    try {
+      await deleteVault(vault.id)
+      // If the deleted vault was the active vault, redirect to dashboard
+      const { activeVault } = useVaultStore.getState()
+      if (activeVault?.id === vault.id) {
+        navigate('/dashboard')
+      }
+    } catch (error) {
+      console.error('Failed to delete vault:', error)
+    }
+  }
+
+  const handleSelectVault = (vault) => {
+    setActiveVault(vault)
+    navigate(`/${vault.id}`)
   }
 
   const handleLogin = async (username, password) => {
@@ -145,22 +163,40 @@ export function Dashboard({ theme, onToggleTheme, isLight }) {
         ) : (
           <div className="grid gap-4">
             {vaults.map((vault, index) => (
-              <button
-                key={vault}
-                onClick={() => handleSelectVault(vault)}
+              <div
+                key={vault.id}
                 className={`flex items-center justify-between p-6 ${isLight ? 'bg-slate-100 hover:bg-slate-200 border-slate-200' : 'bg-neutral-900 hover:bg-neutral-800 border-neutral-800'} border rounded-xl transition-all group`}
               >
-                <div className="flex items-center gap-4">
+                <button
+                  onClick={() => handleSelectVault(vault)}
+                  className="flex items-center gap-4 flex-1 text-left"
+                >
                   <div className={`w-12 h-12 rounded-lg ${isLight ? 'bg-primary-100' : 'bg-primary-500/20'} flex items-center justify-center`}>
                     <NotebookText className={`w-6 h-6 ${isLight ? 'text-primary-600' : 'text-primary-400'}`} />
                   </div>
                   <div className="text-left">
-                    <span className={`text-lg font-medium ${isLight ? 'text-slate-900' : 'text-neutral-50'}`}>{vault || 'Default Vault'}</span>
-                    <p className={`text-sm ${isLight ? 'text-slate-500' : 'text-neutral-500'}`}>Local markdown vault</p>
+                    <span className={`text-lg font-medium ${isLight ? 'text-slate-900' : 'text-neutral-50'}`}>{vault.name || 'Default Vault'}</span>
+                    <p className={`text-sm ${isLight ? 'text-slate-500' : 'text-neutral-500'}`}>Cloud markdown vault</p>
                   </div>
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleSelectVault(vault)}
+                    className={`p-2 rounded-lg ${isLight ? 'text-slate-400 hover:text-slate-600' : 'text-neutral-400 hover:text-neutral-200'} transition-colors`}
+                    title="Open vault"
+                  >
+                    <ArrowRight className={`w-5 h-5 group-hover:text-primary-400 group-hover:translate-x-1 transition-all`} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteVault(vault)}
+                    disabled={isLoading}
+                    className={`p-2 rounded-lg ${isLight ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-red-400 hover:text-red-300 hover:bg-red-900/20'} transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                    title="Delete vault"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-                <ArrowRight className={`w-5 h-5 ${isLight ? 'text-slate-400' : 'text-neutral-400'} group-hover:text-primary-400 group-hover:translate-x-1 transition-all`} />
-              </button>
+              </div>
             ))}
           </div>
         )}

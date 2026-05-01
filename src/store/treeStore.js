@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { createFolder, deleteFolder, getNoteTree, moveFolder, renameFolder } from '../api/noteApi'
+import { createFolder, deleteFolder, getNoteTree, moveFolder, renameFolder } from '../api/supabase/noteApi'
 import { findFolderByPath, flattenNotePaths, normalizeNoteTree, collectAllFolderIds } from '../utils/treeUtils'
 import { toSafePathSegment } from '../utils/fileUtils'
 

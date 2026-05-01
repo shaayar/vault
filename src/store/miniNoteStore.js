@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { parseFrontmatter } from '../utils/markdownUtils'
 import { toSafePathSegment } from '../utils/fileUtils'
-import { renameNote, updateNote } from '../api/noteApi'
+import { renameNote, updateNote } from '../api/supabase/noteApi'
 import { useVaultStore } from './vaultStore'
 import { useIndexStore } from './indexStore'
 
@@ -32,17 +32,19 @@ export const useNoteStore = create((set, get) => ({
   },
 
   // Core note operations
-  openNote: async (vaultName, notePath) => {
-    if (!vaultName || !notePath) return
+  openNote: async (vault, notePath) => {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    if (!vaultId || !notePath) return
     set({ isLoading: true, error: '' })
     try {
-      const { getNote } = await import('../api/noteApi')
-      const note = await getNote(vaultName, notePath)
-      
+      const { getNote } = await import('../api/supabase/noteApi')
+      const note = await getNote(vaultId, notePath)
+
       // Add to recent notes
       const { addRecentNote } = useIndexStore.getState()
-      addRecentNote(vaultName, note.data?.path ?? notePath)
-      
+      addRecentNote(vaultId, note.data?.path ?? notePath)
+
       set({
         activeNotePath: note.data?.path ?? notePath,
         activeNoteContent: note.data?.content ?? '',
@@ -81,20 +83,20 @@ export const useNoteStore = create((set, get) => ({
         if (safeTitle && safeTitle !== currentFilename) {
           const folderPath = activeNotePath.split('/').slice(0, -1).join('/')
           const newPath = folderPath ? `${folderPath}/${safeTitle}.md` : `${safeTitle}.md`
-          await renameNote(activeVault, activeNotePath, title)
+          await renameNote(activeVault.id, activeNotePath, title)
           set({ activeNotePath: newPath })
           renamedPath = newPath
         }
       }
 
       // Save the content
-      await updateNote(activeVault, renamedPath || activeNotePath, activeNoteContent)
-      
+      await updateNote(activeVault.id, renamedPath || activeNotePath, activeNoteContent)
+
       set({
         lastSavedContent: activeNoteContent,
         saveStatus: 'saved',
       })
-      
+
       // Clear saved status after 2 seconds
       setTimeout(() => {
         set({ saveStatus: 'saved' })

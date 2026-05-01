@@ -38,20 +38,24 @@ export function flattenNotePaths(node) {
   return childFolders.reduce((all, folder) => [...all, ...flattenNotePaths(folder)], ownNotes)
 }
 
-export function normalizeNoteTree(node) {
-  if (!node || typeof node !== 'object') {
-    return { name: 'Root', path: '', folders: [], notes: [] }
+export function normalizeNoteTree(notes) {
+  // notes is array of {id, path, title, updated_at}
+  const root = { name: 'Root', path: '', folders: [], notes: [] }
+
+  if (!Array.isArray(notes)) {
+    return root
   }
 
-  const notes = Array.isArray(node.notes) ? node.notes : []
-  const folders = Array.isArray(node.folders) ? node.folders.map(normalizeNoteTree) : []
-
-  return {
-    name: node.name ?? 'Root',
-    path: node.path ?? '',
-    folders,
-    notes,
+  for (const note of notes) {
+    root.notes.push({
+      id: note.id,
+      path: note.path,
+      title: note.title,
+      updated_at: note.updated_at
+    })
   }
+
+  return root
 }
 
 export function getFallbackNoteIndexEntry(notePath) {

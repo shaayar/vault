@@ -35,8 +35,9 @@ export function VaultView() {
   // Sync vault from URL
   useEffect(() => {
     if (vaultName && vaults.length > 0) {
-      if (vaults.includes(vaultName)) {
-        setActiveVault(vaultName)
+      if (vaults.some(v => v.id === vaultName)) {
+        const vault = vaults.find(v => v.id === vaultName)
+        setActiveVault(vault)
       } else {
         // Vault doesn't exist, redirect to 404
         navigate('/404', { replace: true })
@@ -48,7 +49,7 @@ export function VaultView() {
   useEffect(() => {
     if (activeVault) {
       clearNotesForVaultSwitch()
-      loadNoteTreeForVault(activeVault)
+      loadNoteTreeForVault(activeVault.id)
     }
   }, [activeVault, clearNotesForVaultSwitch, loadNoteTreeForVault])
 
@@ -131,7 +132,7 @@ export function VaultView() {
           {/* Vault Name */}
           <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${isLight ? 'bg-slate-200/50' : 'bg-slate-800/30'}`}>
             <ArrowLeft className="w-4 h-4 text-slate-400" />
-            <span className={`font-medium ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>{activeVault}</span>
+            <span className={`font-medium ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>{activeVault?.name || 'No vault'}</span>
           </div>
         </div>
 

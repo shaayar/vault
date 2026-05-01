@@ -1,9 +1,10 @@
+// Component: AppLayout
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Editor } from '../Editor/Editor'
 import { Sidebar } from '../FileExplorer/Sidebar'
 import { FocusMode } from '../FocusMode/FocusMode'
-import { StatusBar } from '../StatusBar/StatusBar'
+
 import { Header } from '../VaultSwitcher/Header'
 import { SearchModal } from '../Search/SearchModal'
 import { ShortcutsModal } from '../Shortcuts/ShortcutsModal'
@@ -54,26 +55,30 @@ export function AppLayout() {
   // Sync vault from URL
   useEffect(() => {
     if (vaultName) {
-      if (vaults.length > 0 && !vaults.includes(vaultName)) {
+      if (vaults.length > 0 && !vaults.some(v => v.id === vaultName)) {
+        console.log('Redirecting to 404: vault not found', vaultName)
         // Vault doesn't exist, redirect to 404
         navigate('/404', { replace: true })
-      } else {
+      } else if (vaults.length > 0) {
         setActiveVaultFromUrl(vaultName)
       }
+      // If vaults not loaded yet, wait
     }
   }, [vaultName, vaults, setActiveVaultFromUrl, navigate])
 
   // Sync note from URL
   useEffect(() => {
     if (notePath && activeVault) {
+      console.log(`useEffect notePath triggered: ${notePath} in vault: ${activeVault.id}`)
       const decodedPath = decodeNotePath(notePath)
       const resolvedPath = resolveCanonicalNotePath(noteIndex, decodedPath)
+      console.log(`Resolved path: ${resolvedPath}`)
 
       setActiveNoteFromUrl(resolvedPath)
-      openNote(activeVault, resolvedPath)
+      openNote(activeVault.id, resolvedPath)
 
       if (resolvedPath !== decodedPath) {
-        navigate(`/${activeVault}/${encodeNotePath(resolvedPath)}`, { replace: true })
+        navigate(`/${activeVault.id}/${encodeNotePath(resolvedPath)}`, { replace: true })
       }
     }
   }, [notePath, activeVault, noteIndex, navigate, setActiveNoteFromUrl, openNote])
@@ -84,7 +89,7 @@ export function AppLayout() {
 
   useEffect(() => {
     clearNotesForVaultSwitch()
-    loadNoteTreeForVault(activeVault)
+    loadNoteTreeForVault(activeVault?.id || '')
   }, [activeVault, clearNotesForVaultSwitch, loadNoteTreeForVault])
 
   useEffect(() => {
@@ -226,7 +231,7 @@ export function AppLayout() {
 
             {/* Divider Gutter */}
             {sidebarCollapsed && <div className="w-1 bg-slate-950" />}
-            <div className="flex-1 flex flex-col overflow-hidden min-h-[91dvh]">
+            <div className="flex-1 flex flex-col overflow-hidden">
               <Editor isLight={isLight} />
             </div>
           </div>

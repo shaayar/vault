@@ -1,5 +1,5 @@
-import { createNote as createNoteApi, deleteNote, renameNote, updateNote, moveNote } from '../api/noteApi'
-import { createFolder, deleteFolder, renameFolder, moveFolder } from '../api/folderApi'
+import { createNote as createNoteApi, deleteNote, renameNote, updateNote, moveNote } from '../api/supabase/noteApi'
+import { createFolder, deleteFolder, renameFolder, moveFolder } from '../api/supabase/folderApi'
 import { toSafePathSegment } from '../utils/fileUtils'
 import { buildSafeNoteContent, findFolderByPath } from '../utils/treeUtils'
 
@@ -12,11 +12,13 @@ export class NoteActions {
     this.vaultStore = vaultStore
   }
 
-  async createNote(vaultName, notePath, content = '') {
+  async createNote(vault, notePath, content = '') {
     this.noteStore.setState({ isLoading: true, error: '' })
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
     try {
-      const created = await createNoteApi(vaultName, notePath, content)
-      await this.noteStore.loadNoteTreeForVault(vaultName)
+      const created = await createNoteApi(vaultId, notePath, content)
+      await this.noteStore.loadNoteTreeForVault(vaultId)
       this.noteStore.setState({ isLoading: false })
       return created
     } catch (error) {
@@ -28,11 +30,14 @@ export class NoteActions {
     }
   }
 
-  async createNoteInFolder(vaultName, folderPath, noteTitle) {
+  async createNoteInFolder(vault, folderPath, noteTitle) {
     const trimmedTitle = noteTitle.trim()
     if (!trimmedTitle) return
     const safeStem = toSafePathSegment(trimmedTitle)
     if (!safeStem) return
+
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
 
     // Generate unique filename if note already exists
     const noteIndex = this.noteStore.getState().noteIndex
@@ -52,9 +57,9 @@ export class NoteActions {
     const notePath = folderPath ? `${folderPath}/${noteFile}` : noteFile
     this.noteStore.setState({ isLoading: true, error: '' })
     try {
-      const created = await createNoteApi(vaultName, notePath, buildSafeNoteContent(trimmedTitle))
-      await this.noteStore.loadNoteTreeForVault(vaultName)
-      await this.noteStore.openNote(vaultName, created?.path ?? notePath)
+      const created = await createNoteApi(vaultId, notePath, buildSafeNoteContent(trimmedTitle))
+      await this.noteStore.loadNoteTreeForVault(vaultId)
+      await this.noteStore.openNote(vaultId, created?.path ?? notePath)
       this.noteStore.setState({ saveStatus: 'saved' })
       return created
     } catch (error) {
@@ -66,10 +71,13 @@ export class NoteActions {
     }
   }
 
-  async createFolder(vaultName, currentFolderPath, folderName) {
+  async createFolder(vault, currentFolderPath, folderName) {
     const trimmedFolder = folderName.trim()
     const safeFolder = toSafePathSegment(trimmedFolder)
     if (!safeFolder) return
+
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
     const folderPath = currentFolderPath ? `${currentFolderPath}/${safeFolder}` : safeFolder
 
     // Check if folder already exists
@@ -101,8 +109,8 @@ export class NoteActions {
 
       this.noteStore.setState({ isLoading: true, error: '' })
       try {
-        const created = await createFolder(vaultName, finalFolderPath)
-        await this.noteStore.loadNoteTreeForVault(vaultName)
+        const created = await createFolder(vaultId, finalFolderPath)
+        await this.noteStore.loadNoteTreeForVault(vaultId)
         this.noteStore.setSelectedFolderPath(created?.path ?? finalFolderPath)
         return created
       } catch (error) {
@@ -116,8 +124,8 @@ export class NoteActions {
 
     this.noteStore.setState({ isLoading: true, error: '' })
     try {
-      const created = await createFolder(vaultName, folderPath)
-      await this.noteStore.loadNoteTreeForVault(vaultName)
+      const created = await createFolder(vaultId, folderPath)
+      await this.noteStore.loadNoteTreeForVault(vaultId)
       this.noteStore.setSelectedFolderPath(created?.path ?? folderPath)
       return created
     } catch (error) {
@@ -129,17 +137,19 @@ export class NoteActions {
     }
   }
 
-  async renameNote(vaultName, notePath, nextName) {
+  async renameNote(vault, notePath, nextName) {
     const trimmedName = nextName.trim()
     const safeStem = toSafePathSegment(trimmedName)
-    if (!vaultName || !notePath || !safeStem) return
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    if (!vaultId || !notePath || !safeStem) return
     const folderPath = notePath.split('/').slice(0, -1).join('/')
     const nextPath = folderPath ? `${folderPath}/${safeStem}.md` : `${safeStem}.md`
 
     this.noteStore.setState({ isLoading: true, error: '' })
     try {
-      await renameNote(vaultName, notePath, trimmedName)
-      await this.noteStore.loadNoteTreeForVault(vaultName)
+      await renameNote(vaultId, notePath, trimmedName)
+      await this.noteStore.loadNoteTreeForVault(vaultId)
       return nextPath
     } catch (error) {
       this.noteStore.setState({
@@ -150,17 +160,19 @@ export class NoteActions {
     }
   }
 
-  async renameFolder(vaultName, folderPath, nextName) {
+  async renameFolder(vault, folderPath, nextName) {
     const trimmedName = nextName.trim()
     const safeFolder = toSafePathSegment(trimmedName)
-    if (!vaultName || !folderPath || !safeFolder) return
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    if (!vaultId || !folderPath || !safeFolder) return
     const parentPath = folderPath.split('/').slice(0, -1).join('/')
     const nextPath = parentPath ? `${parentPath}/${safeFolder}` : safeFolder
 
     this.noteStore.setState({ isLoading: true, error: '' })
     try {
-      await renameFolder(vaultName, folderPath, trimmedName)
-      await this.noteStore.loadNoteTreeForVault(vaultName)
+      await renameFolder(vaultId, folderPath, trimmedName)
+      await this.noteStore.loadNoteTreeForVault(vaultId)
       return nextPath
     } catch (error) {
       this.noteStore.setState({
@@ -171,13 +183,15 @@ export class NoteActions {
     }
   }
 
-  async moveNote(vaultName, notePath, targetPath) {
-    if (!vaultName || !notePath) return
+  async moveNote(vault, notePath, targetPath) {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    if (!vaultId || !notePath) return
 
     this.noteStore.setState({ isLoading: true, error: '' })
     try {
-      await moveNote(vaultName, notePath, targetPath)
-      await this.noteStore.loadNoteTreeForVault(vaultName)
+      await moveNote(vaultId, notePath, targetPath)
+      await this.noteStore.loadNoteTreeForVault(vaultId)
     } catch (error) {
       this.noteStore.setState({
         isLoading: false,
@@ -187,13 +201,15 @@ export class NoteActions {
     }
   }
 
-  async moveFolder(vaultName, folderPath, targetPath) {
-    if (!vaultName || !folderPath) return
+  async moveFolder(vault, folderPath, targetPath) {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    if (!vaultId || !folderPath) return
 
     this.noteStore.setState({ isLoading: true, error: '' })
     try {
-      await moveFolder(vaultName, folderPath, targetPath)
-      await this.noteStore.loadNoteTreeForVault(vaultName)
+      await moveFolder(vaultId, folderPath, targetPath)
+      await this.noteStore.loadNoteTreeForVault(vaultId)
     } catch (error) {
       this.noteStore.setState({
         isLoading: false,
@@ -203,12 +219,14 @@ export class NoteActions {
     }
   }
 
-  async deleteNote(vaultName, notePath) {
+  async deleteNote(vault, notePath) {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
     this.noteStore.setState({ isLoading: true, error: '' })
     try {
-      await deleteNote(vaultName, notePath)
+      await deleteNote(vaultId, notePath)
       const currentPath = this.noteStore.getState().activeNotePath
-      await this.noteStore.loadNoteTreeForVault(vaultName)
+      await this.noteStore.loadNoteTreeForVault(vaultId)
       if (currentPath === notePath) {
         this.noteStore.setState({
           activeNotePath: '',
@@ -226,12 +244,14 @@ export class NoteActions {
     }
   }
 
-  async deleteFolder(vaultName, folderPath) {
+  async deleteFolder(vault, folderPath) {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
     this.noteStore.setState({ isLoading: true, error: '' })
     try {
-      await deleteFolder(vaultName, folderPath)
+      await deleteFolder(vaultId, folderPath)
       const currentSelectedFolder = this.noteStore.getState().selectedFolderPath
-      await this.noteStore.loadNoteTreeForVault(vaultName)
+      await this.noteStore.loadNoteTreeForVault(vaultId)
       if (currentSelectedFolder === folderPath || currentSelectedFolder.startsWith(`${folderPath}/`)) {
         this.noteStore.setSelectedFolderPath('')
       }

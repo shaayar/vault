@@ -15,6 +15,7 @@
   "dependencies": {
     "@mdxeditor/editor": "^3.55.0",
     "@netlify/blobs": "^8.2.0",
+    "@supabase/supabase-js": "^2.105.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.2",
     "d3-force": "^3.0.0",

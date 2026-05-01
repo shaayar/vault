@@ -22,7 +22,7 @@ export function EditorBacklinks({ noteIndex, activeNotePath, activeVault, openNo
               <button
                 type="button"
                 className={`text-left underline ${isLight ? 'text-indigo-700' : 'text-indigo-400'}`}
-                onClick={() => openNote(activeVault, b.path)}
+                onClick={() => openNote(activeVault.id, b.path)}
               >
                 {b.title}
               </button>

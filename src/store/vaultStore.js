@@ -1,19 +1,21 @@
 import { create } from 'zustand'
-import { createVault as createVaultRequest, getVaults, deleteVault as deleteVaultRequest, renameVault as renameVaultRequest } from '../api/vaultApi'
+import { createVault as createVaultRequest, getVaults, deleteVault as deleteVaultRequest, renameVault as renameVaultRequest } from '../api/supabase/vaultApi'
 
 /**
  * Global vault state for listing, selecting, and creating vaults.
  */
 export const useVaultStore = create((set, get) => ({
   vaults: [],
-  activeVault: '',
+  activeVault: null,
   isLoading: false,
   error: '',
-  setActiveVault: (vaultName) => {
-    set({ activeVault: vaultName })
+  setActiveVault: (vault) => {
+    set({ activeVault: vault })
   },
-  setActiveVaultFromUrl: (vaultName) => {
-    set({ activeVault: vaultName })
+  setActiveVaultFromUrl: (vaultId) => {
+    const vaults = get().vaults
+    const vault = vaults.find(v => v.id === vaultId)
+    set({ activeVault: vault || null })
   },
   setVaults: (vaults) => {
     set({ vaults })
@@ -24,17 +26,17 @@ export const useVaultStore = create((set, get) => ({
       const vaults = await getVaults()
       const normalizedVaults = Array.isArray(vaults) ? vaults : []
       const currentActiveVault = get().activeVault
-      const hasCurrentVault = normalizedVaults.includes(currentActiveVault)
+      const hasCurrentVault = currentActiveVault && normalizedVaults.some(v => v.id === currentActiveVault.id)
 
       set({
         vaults: normalizedVaults,
-        activeVault: hasCurrentVault ? currentActiveVault : normalizedVaults[0] ?? 'demo-vault',
+        activeVault: hasCurrentVault ? currentActiveVault : normalizedVaults[0] || null,
         isLoading: false,
       })
     } catch (error) {
       set({
         vaults: [],
-        activeVault: '',
+        activeVault: null,
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to fetch vaults',
       })
@@ -42,9 +44,10 @@ export const useVaultStore = create((set, get) => ({
   },
   createVault: async (vaultName) => {
     set({ isLoading: true, error: '' })
+    console.log(`Creating vault: ${vaultName}`)
     try {
-      const response = await createVaultRequest(vaultName)
-      const createdVault = typeof response === 'string' ? response : response?.name || vaultName
+      const createdVault = await createVaultRequest(vaultName)
+      console.log(`Vault created:`, createdVault)
       // Refresh vaults list to ensure sync with server
       try {
         const refreshedVaults = await getVaults()
@@ -58,7 +61,7 @@ export const useVaultStore = create((set, get) => ({
         // If refresh fails, add the new vault to existing list
         console.error('Failed to refresh vaults list after creation:', refreshError)
         const currentVaults = get().vaults
-        const updatedVaults = [...new Set([...currentVaults, createdVault])]
+        const updatedVaults = [...currentVaults, createdVault]
         set({
           isLoading: false,
           vaults: updatedVaults,
@@ -75,17 +78,17 @@ export const useVaultStore = create((set, get) => ({
     }
   },
 
-  deleteVault: async (vaultName) => {
+  deleteVault: async (vaultId) => {
     set({ isLoading: true, error: '' })
     try {
-      await deleteVaultRequest(vaultName)
+      await deleteVaultRequest(vaultId)
       // Refresh vaults list to ensure sync with server
       try {
         const refreshedVaults = await getVaults()
         const normalizedVaults = Array.isArray(refreshedVaults) ? refreshedVaults : []
         const activeVault = get().activeVault
         // If deleted vault was active, clear it
-        const newActiveVault = activeVault === vaultName ? '' : activeVault
+        const newActiveVault = activeVault?.id === vaultId ? null : activeVault
         set({
           isLoading: false,
           vaults: normalizedVaults,
@@ -96,8 +99,8 @@ export const useVaultStore = create((set, get) => ({
         console.error('Failed to refresh vaults list after deletion:', refreshError)
         const currentVaults = get().vaults
         const activeVault = get().activeVault
-        const updatedVaults = currentVaults.filter(v => v !== vaultName)
-        const newActiveVault = activeVault === vaultName ? '' : activeVault
+        const updatedVaults = currentVaults.filter(v => v.id !== vaultId)
+        const newActiveVault = activeVault?.id === vaultId ? null : activeVault
         set({
           isLoading: false,
           vaults: updatedVaults,
@@ -113,30 +116,29 @@ export const useVaultStore = create((set, get) => ({
     }
   },
 
-  renameVault: async (oldName, newName) => {
+  renameVault: async (vaultId, newName) => {
     set({ isLoading: true, error: '' })
     try {
-      const response = await renameVaultRequest(oldName, newName)
-      const renamedVault = response?.name || newName
+      const renamedVault = await renameVaultRequest(vaultId, newName)
       // Refresh vaults list to ensure sync with server
       try {
         const refreshedVaults = await getVaults()
         const normalizedVaults = Array.isArray(refreshedVaults) ? refreshedVaults : []
         const activeVault = get().activeVault
-        // If renamed vault was active, update to new name
-        const newActiveVault = activeVault === oldName ? renamedVault : activeVault
+        // If renamed vault was active, update to new vault object
+        const newActiveVault = activeVault?.id === vaultId ? renamedVault : activeVault
         set({
           isLoading: false,
           vaults: normalizedVaults,
           activeVault: newActiveVault,
         })
       } catch (refreshError) {
-        // If refresh fails, replace old name with new in existing list
+        // If refresh fails, replace old vault with new in existing list
         console.error('Failed to refresh vaults list after rename:', refreshError)
         const currentVaults = get().vaults
         const activeVault = get().activeVault
-        const updatedVaults = currentVaults.map(v => v === oldName ? renamedVault : v)
-        const newActiveVault = activeVault === oldName ? renamedVault : activeVault
+        const updatedVaults = currentVaults.map(v => v.id === vaultId ? renamedVault : v)
+        const newActiveVault = activeVault?.id === vaultId ? renamedVault : activeVault
         set({
           isLoading: false,
           vaults: updatedVaults,

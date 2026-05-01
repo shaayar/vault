@@ -25,23 +25,28 @@ router.get('/*', (req, res) => {
     const vaultRoot = getVaultRoot();
     const notesDir = getNotesRoot(vaultRoot, req.params.vaultName);
     const notePath = req.params[0];
+    console.log(`Fetching note: vault=${req.params.vaultName}, path=${notePath}`)
     
     const resolvedNote = resolveUnderNotesRoot(notesDir, notePath, true);
+    console.log(`Resolved note path: ${resolvedNote}`)
     
-    if (!fs.existsSync(resolvedNote) || !fs.statSync(resolvedNote).isFile() || 
+    if (!fs.existsSync(resolvedNote) || !fs.statSync(resolvedNote).isFile() ||
         !resolvedNote.toLowerCase().endsWith('.md')) {
+      console.log(`Note not found at: ${resolvedNote}`)
       return sendJson(res, 404, errorResponse('Note not found'));
     }
     
     let content;
     try {
       content = fs.readFileSync(resolvedNote, 'utf-8');
+      console.log(`Note content length: ${content.length}`)
     } catch (err) {
       return sendJson(res, 500, errorResponse('Failed to read note'));
     }
-    
+
     const relativePath = path.relative(notesDir, resolvedNote).replace(/\\/g, '/');
-    
+    console.log(`Returning note: path=${relativePath}`)
+
     sendJson(res, 200, successResponse({
       path: relativePath,
       content: content

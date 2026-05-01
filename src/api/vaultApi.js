@@ -8,7 +8,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 export async function getVaults() {
   try {
     const payload = await retryFetch(`${API_BASE}/vaults`)
-    return payload.data
+    return payload.data.map(name => ({ id: name, name }))
   } catch (error) {
     logApiError(error, { action: 'getVaults' })
     showErrorToast(error.getUserMessage?.() || error.message || 'Failed to load vaults')
@@ -27,7 +27,7 @@ export async function createVault(vaultName) {
       body: JSON.stringify({ name: vaultName }),
     })
     showSuccessToast('Vault created successfully')
-    return payload.data
+    return { id: payload.data, name: vaultName }
   } catch (error) {
     logApiError(error, { action: 'createVault', vaultName })
     showErrorToast(error.getUserMessage?.() || error.message || 'Failed to create vault')
@@ -95,7 +95,7 @@ export async function renameVault(oldName, newName) {
       body: JSON.stringify({ name: newName }),
     })
     showSuccessToast('Vault renamed successfully')
-    return payload.data
+    return { id: payload.data, name: newName }
   } catch (error) {
     logApiError(error, { action: 'renameVault', oldName, newName })
     showErrorToast(error.getUserMessage?.() || error.message || 'Failed to rename vault')

@@ -94,9 +94,9 @@ export function SearchModal({ isOpen, onClose }) {
     setSelectedResult(result)
     // Open the note in editor
     if (result.type === 'note' && activeVault) {
-      openNote(activeVault, result.path)
+      openNote(activeVault.id, result.path)
       const encodedPath = encodeNotePath(result.path)
-      navigate(`/${activeVault}/${encodedPath}`)
+      navigate(`/${activeVault.id}/${encodedPath}`)
     }
     onClose()
   }

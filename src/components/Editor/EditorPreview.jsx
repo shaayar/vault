@@ -15,7 +15,7 @@ export function EditorPreview({ bodyContent, noteIndex, activeVault, openNote, i
   const markdownWithInternalLinks = transformWikiLinks(bodyContent || '')
 
   return (
-    <div className={`overflow-auto p-3 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+    <div className={`overflow-scroll p-3 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
       <article
         className={`max-w-none prose ${isLight
           ? 'prose-slate'
@@ -53,7 +53,7 @@ export function EditorPreview({ bodyContent, noteIndex, activeVault, openNote, i
                 <button
                   type="button"
                   className="cursor-pointer text-indigo-400 underline"
-                  onClick={() => openNote(activeVault, match.path)}
+                  onClick={() => openNote(activeVault.id, match.path)}
                 >
                   {children}
                 </button>

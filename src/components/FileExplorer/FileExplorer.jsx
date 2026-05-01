@@ -20,13 +20,13 @@ export function FileExplorer({ rootId, animationIndex = 0 }) {
       const itemName = draggedNode.path.split('/').pop()
       const targetPath = targetNode.path ? `${targetNode.path}/${itemName}` : itemName
       if (draggedNode.type === 'note') {
-        await moveNoteByPath(activeVault, draggedNode.path, targetPath)
+        await moveNoteByPath(activeVault.id, draggedNode.path, targetPath)
       } else if (draggedNode.type === 'folder') {
-        await moveFolderByPath(activeVault, draggedNode.path, targetPath)
+        await moveFolderByPath(activeVault.id, draggedNode.path, targetPath)
       }
       // Reinitialize tree after move
       const { initialize } = useNoteStore.getState()
-      await initialize(activeVault)
+      await initialize(activeVault.id)
     },
     onError: (message) => console.error('Drag error:', message),
     onSuccess: (message) => console.log('Drag success:', message)

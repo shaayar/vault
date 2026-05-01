@@ -1,3 +1,4 @@
+// Component: Sidebar
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -90,7 +91,7 @@ export function Sidebar({ className = '', isMobile = false, isLight = false }) {
     if (!trimmedName) return
 
     const createdVault = await createVault(trimmedName)
-    navigate(getVaultEditorPath(createdVault))
+    navigate(`/${createdVault.id}/Welcome.md`)
   }
 
   const handleDeleteVault = async () => {
@@ -121,8 +122,8 @@ export function Sidebar({ className = '', isMobile = false, isLight = false }) {
       return
     }
     try {
-      await renameVault(activeVault, vaultRenameInput.trim())
-      navigate(getVaultEditorPath(vaultRenameInput.trim()))
+      const renamedVault = await renameVault(activeVault.id, vaultRenameInput.trim())
+      navigate(`/${renamedVault.id}/`)
     } catch (error) {
       console.error('Failed to rename vault:', error)
     } finally {
@@ -207,15 +208,16 @@ export function Sidebar({ className = '', isMobile = false, isLight = false }) {
               ) : (
                 <select
                   className={`bg-transparent font-medium focus:outline-none border-none text-sm w-full ${isLight ? 'text-slate-900' : 'text-slate-200'}`}
-                  value={activeVault}
+                  value={activeVault?.id || ''}
                   onChange={async (e) => {
                     try {
-                      const newVault = e.target.value
-                      setActiveVault(newVault)
+                      const newVaultId = e.target.value
+                      const vaultObj = vaults.find(v => v.id === newVaultId)
+                      setActiveVault(vaultObj)
                       clearNotesForVaultSwitch()
-                      if (newVault) {
-                        await loadNoteTreeForVault(newVault)
-                        navigate(getVaultEditorPath(newVault))
+                      if (vaultObj) {
+                        await loadNoteTreeForVault(vaultObj.id)
+                        navigate(`/${vaultObj.id}/`)
                       }
                     } catch (error) {
                       console.error('Failed to switch vault:', error)
@@ -230,8 +232,8 @@ export function Sidebar({ className = '', isMobile = false, isLight = false }) {
                     </>
                   ) : (
                     vaults.map((vault) => (
-                      <option key={vault} value={vault}>
-                        {vault || 'Default Vault'}
+                      <option key={vault.id} value={vault.id}>
+                        {vault.name || 'Default Vault'}
                       </option>
                     ))
                   )}

@@ -11,12 +11,15 @@ export function EditorTags({ currentTags, newTagInput, setNewTagInput, onAddTag,
           currentTags.map(tag => (
             <span
               key={tag}
-              className={`inline-flex items-center gap-1 rounded px-2 py-1 ${isLight ? 'bg-slate-200 text-slate-700' : 'bg-slate-800 text-slate-300'}`}
+              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${isLight
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+                } transition-colors duration-200`}
             >
               #{tag}
               <button
                 type="button"
-                className="hover:text-rose-400 ml-1"
+                className={`ml-1 hover:text-red-200 transition-colors duration-200`}
                 onClick={() => onRemoveTag(tag)}
               >
                 ×
@@ -28,9 +31,9 @@ export function EditorTags({ currentTags, newTagInput, setNewTagInput, onAddTag,
       {currentTags.length < maxTags && (
         <input
           type="text"
-          className={`w-full rounded-md border px-2 py-1 ${isLight
-            ? 'border-slate-300 bg-white text-slate-700'
-            : 'border-slate-600 bg-slate-950 text-slate-200'
+          className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 ${isLight
+            ? 'border-slate-300 bg-white text-slate-700 placeholder-slate-400'
+            : 'border-slate-600 bg-slate-800 text-slate-200 placeholder-slate-500'
             }`}
           placeholder={`Add tag (press Enter to add)... Max ${maxTags} tags`}
           value={newTagInput}

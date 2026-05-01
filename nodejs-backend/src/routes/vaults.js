@@ -91,6 +91,7 @@ router.post('/', (req, res) => {
     
     // Create welcome note
     const welcomeNotePath = path.join(notesPath, 'Welcome.md');
+    console.log(`Creating welcome note at: ${welcomeNotePath}`);
     const welcomeContent = `---
 title: "Welcome to VaultNote"
 tags: [welcome, getting-started]
@@ -130,8 +131,9 @@ This is your new vault. Here are some quick tips to get started:
 
 Happy note-taking! 📝
 `;
-    
+
     fs.writeFileSync(welcomeNotePath, welcomeContent, 'utf-8');
+    console.log(`Welcome note created successfully`);
     
     sendJson(res, 201, successResponse(vaultName));
   } catch (err) {

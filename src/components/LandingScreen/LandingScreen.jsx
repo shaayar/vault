@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { NotebookText, Terminal, Folder, Link2, Share, Bolt, Search, Moon, ArrowRight } from 'lucide-react'
 import { LoginModal, SignupModal } from '../Auth'
-import { useAuth } from '../../hooks/useAuth'
+import { useSupabaseAuth } from '../../hooks/useSupabaseAuth'
 import { Marquee } from './Marquee'
 import { Testimonials } from './Testimonials'
 import { BentoGrid } from './BentoGrid'
@@ -12,15 +12,15 @@ export function LandingScreen() {
   const navigate = useNavigate()
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [isSignupOpen, setIsSignupOpen] = useState(false)
-  const { currentUser, logout, handleLogin, handleSignup } = useAuth()
+  const { user, displayName, signIn, signUp, signOut, error, clearError } = useSupabaseAuth()
 
-  const handleLoginSuccess = async (username, password) => {
-    await handleLogin(username, password)
+  const handleLoginSuccess = async (email, password) => {
+    await signIn(email, password)
     setIsLoginOpen(false)
   }
 
-  const handleSignupSuccess = async (username, email, password) => {
-    await handleSignup(username, email, password)
+  const handleSignupSuccess = async (email, password, username) => {
+    await signUp(email, password, username)
     setIsSignupOpen(false)
   }
 
@@ -39,11 +39,11 @@ export function LandingScreen() {
             <a className="text-neutral-400 hover:text-neutral-50 transition-colors duration-200 cursor-pointer">API</a>
             <a className="text-neutral-400 hover:text-neutral-50 transition-colors duration-200 cursor-pointer">Security</a>
           </div>
-          {currentUser ? (
+          {user ? (
             <div className="flex items-center gap-4">
-              <span className="text-neutral-400">Welcome, <span className="text-neutral-50 font-medium">{currentUser}</span></span>
+              <span className="text-neutral-400">Welcome, <span className="text-neutral-50 font-medium">{displayName}</span></span>
               <button
-                onClick={logout}
+                onClick={signOut}
                 className="text-neutral-400 hover:text-neutral-50 transition-colors text-sm"
               >
                 Log out
@@ -74,7 +74,7 @@ export function LandingScreen() {
               A markdown-native precision tool for technical minds. Own your data with local-first architecture and terminal-grade encryption.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              {currentUser ? (
+              {user ? (
                 <button
                   onClick={() => navigate('/dashboard')}
                   className="px-8 py-4 bg-primary-600 text-neutral-50 rounded-lg flex items-center gap-2 hover:shadow-[0_0_20px_rgba(124,58,237,0.3)] transition-all"
@@ -227,7 +227,7 @@ export function LandingScreen() {
               <h2 className="text-6xl font-semibold text-neutral-50 mb-6 uppercase tracking-tighter">Ready to secure your second brain?</h2>
               <p className="text-neutral-400 text-lg max-w-2xl mx-auto mb-10">Download the native client today. Available for macOS, Linux, and Windows.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                {currentUser ? (
+                {user ? (
                   <button
                     onClick={() => navigate('/dashboard')}
                     className="px-8 py-4 bg-primary-600 text-neutral-50 rounded-lg hover:brightness-110 transition-all flex items-center gap-2"
@@ -263,21 +263,29 @@ export function LandingScreen() {
       {/* Auth Modals */}
       <LoginModal
         isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
+        onClose={() => {
+          setIsLoginOpen(false)
+          clearError()
+        }}
         onLogin={handleLoginSuccess}
         onSwitchToSignup={() => {
           setIsLoginOpen(false)
           setIsSignupOpen(true)
         }}
+        error={error}
       />
       <SignupModal
         isOpen={isSignupOpen}
-        onClose={() => setIsSignupOpen(false)}
+        onClose={() => {
+          setIsSignupOpen(false)
+          clearError()
+        }}
         onSignup={handleSignupSuccess}
         onSwitchToLogin={() => {
           setIsSignupOpen(false)
           setIsLoginOpen(true)
         }}
+        error={error}
       />
     </div>
   )

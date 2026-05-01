@@ -22,6 +22,65 @@ All notable changes to VaultNote are documented in this file.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- Complete Supabase backend integration
+- Supabase Authentication with email/password
+- Supabase Storage for images
+- Default welcome note creation for new vaults
+- Delete vault functionality with confirmation
+- Graph button in Editor header for opening note graph visualization
+- **Tag extraction from first heading**: Tags written as `#tag1 #tag2 #tag3` under the first H1 heading are automatically extracted and displayed as styled UI elements
+- **Primary tag styling**: Tags now display with blue background and white text for better visibility
+- **Enhanced tag management**: Tags are stored separately from content and reconstructed when saving
+
+### Fixed
+
+- All vault object vs vault ID type mismatches
+- UUID format errors in API calls
+- React child rendering errors with vault objects
+- Folder creation and note creation functionality
+- Welcome note visibility in new vaults
+- All API imports updated to Supabase endpoints
+- Undefined vault object handling throughout application
+- Editor layout height and scrolling issues
+- StatusBar footer positioning and visibility
+
+### Changed
+
+- Migrated from local filesystem to Supabase database
+- Updated all stores to handle vault objects properly
+- Enhanced error handling for vault operations
+- Improved type safety across all components
+- Removed StatusBar footer from Editor component
+
+### Breaking
+
+- Local storage replaced with Supabase database
+- All data now stored in cloud instead of local filesystem
+- Environment variables required for Supabase configuration
+
+---
+
+## 2026-05-01
+
+### Added
+
+- Graph button in Editor header for opening note graph visualization
+
+### Changed
+
+- Removed StatusBar footer from Editor component
+
+### Fixed
+
+- Editor layout height and scrolling issues
+- StatusBar footer positioning and visibility
+
+---
+
 ## 2026-04-30 (Evening)
 
 ### Added
@@ -134,3 +193,18 @@ All notable changes to VaultNote are documented in this file.
   1. Set `VITE_API_BASE_URL=http://localhost:3000` in `.env`
   2. Or update `vite.config.js` proxy to point to `http://localhost:3000`
   3. Run `cd nodejs-backend && npm run dev` before starting the frontend
+
+---
+
+## [0.1.0] - Previous Version
+
+### Features
+
+- Local filesystem-based note storage
+- Basic markdown editing
+- File explorer with folders
+- Search functionality
+- Dark/light theme support
+- Note templates
+- Graph visualization
+- Keyboard shortcuts

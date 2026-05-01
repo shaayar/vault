@@ -42,7 +42,7 @@ export function SignupModal({ isOpen, onClose, onSignup, onSwitchToLogin, error:
     setIsLoading(true)
 
     try {
-      await onSignup?.(username, email, password)
+      await onSignup?.(email, password, username)
     } catch (err) {
       setError(err.message || 'Signup failed')
     } finally {
@@ -76,17 +76,17 @@ export function SignupModal({ isOpen, onClose, onSignup, onSwitchToLogin, error:
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Username
+              Email
             </label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 ref={inputRef}
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Choose a username"
+                placeholder="your@email.com"
                 required
               />
             </div>
@@ -94,16 +94,16 @@ export function SignupModal({ isOpen, onClose, onSignup, onSwitchToLogin, error:
 
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Email (optional)
+              Username (optional)
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="your@email.com"
+                placeholder="What should the system call you?"
               />
             </div>
           </div>
@@ -145,7 +145,7 @@ export function SignupModal({ isOpen, onClose, onSignup, onSwitchToLogin, error:
 
           <button
             type="submit"
-            disabled={isLoading || !username || !password || !confirmPassword}
+            disabled={isLoading || !email || !password || !confirmPassword}
             className="w-full py-2.5 bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
             {isLoading ? 'Creating account...' : 'Create Account'}

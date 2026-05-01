@@ -41,7 +41,7 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode, onTog
     if (!trimmedName) return
 
     const createdVault = await createVault(trimmedName)
-    navigate(getVaultEditorPath(createdVault))
+    navigate(`/${createdVault.id}/Welcome.md`)
   }
 
   const handleDeleteVault = async () => {
@@ -49,11 +49,11 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode, onTog
       alert('No vault selected')
       return
     }
-    if (!window.confirm(`Are you sure you want to delete "${activeVault}"? This will permanently delete all notes in this vault.`)) {
+    if (!window.confirm(`Are you sure you want to delete "${activeVault.name}"? This will permanently delete all notes in this vault.`)) {
       return
     }
     try {
-      await deleteVault(activeVault)
+      await deleteVault(activeVault.id)
       navigate('/')
     } catch (error) {
       console.error('Failed to delete vault:', error)
@@ -62,18 +62,18 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode, onTog
 
   const handleVaultDoubleClick = () => {
     if (!activeVault || isLoading) return
-    setVaultRenameInput(activeVault)
+    setVaultRenameInput(activeVault.name)
     setIsRenamingVault(true)
   }
 
   const handleVaultRenameSubmit = async () => {
-    if (!vaultRenameInput.trim() || vaultRenameInput.trim() === activeVault) {
+    if (!vaultRenameInput.trim() || vaultRenameInput.trim() === activeVault.name) {
       setIsRenamingVault(false)
       return
     }
     try {
-      await renameVault(activeVault, vaultRenameInput.trim())
-      navigate(getVaultEditorPath(vaultRenameInput.trim()))
+      const renamedVault = await renameVault(activeVault.id, vaultRenameInput.trim())
+      navigate(`/${renamedVault.id}/`)
     } catch (error) {
       console.error('Failed to rename vault:', error)
     } finally {
@@ -207,15 +207,16 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode, onTog
                 <>
                   <select
                     className={`bg-transparent font-medium focus:outline-none border-none ${isLight ? 'text-slate-900 focus:text-slate-900' : 'text-slate-200 focus:text-white'}`}
-                    value={activeVault}
+                    value={activeVault?.id || ''}
                     onChange={async (e) => {
                       try {
-                        const newVault = e.target.value
+                        const newVaultId = e.target.value
+                        const newVault = vaults.find(v => v.id === newVaultId)
                         setActiveVault(newVault)
                         clearNotesForVaultSwitch()
                         if (newVault) {
-                          await loadNoteTreeForVault(newVault)
-                          navigate(getVaultEditorPath(newVault))
+                          await loadNoteTreeForVault(newVault.id)
+                          navigate(getVaultEditorPath(newVault.id))
                         }
                       } catch (error) {
                         console.error('Failed to switch vault:', error)
@@ -230,8 +231,8 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode, onTog
                       </>
                     ) : (
                       vaults.map((vault) => (
-                        <option key={vault} value={vault}>
-                          {vault || 'Default Vault'}
+                        <option key={vault.id} value={vault.id}>
+                          {vault.name || 'Default Vault'}
                         </option>
                       ))
                     )}
@@ -242,7 +243,7 @@ export function Header({ theme, onToggleTheme, isLight, onToggleFocusMode, onTog
                       className={`text-xs px-2 py-0.5 rounded cursor-pointer ${isLight ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200' : 'bg-indigo-900/30 text-indigo-400 hover:bg-indigo-900/50'}`}
                       title="Double-click to rename vault"
                     >
-                      {activeVault}
+                      {activeVault.name || 'No vault'}
                     </span>
                   )}
                 </>

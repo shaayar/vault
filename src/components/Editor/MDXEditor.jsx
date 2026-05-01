@@ -3,7 +3,7 @@ import { MDXEditor } from '@mdxeditor/editor'
 import '@mdxeditor/editor/style.css'
 import './mdx-editor-styles.css'
 import { compressImage, shouldCompress } from '../../utils/imageUtils'
-import { uploadImage } from '../../api/imageApi'
+import { uploadImage } from '../../api/supabase/imageApi'
 import { useVaultStore } from '../../store/vaultStore'
 import {
   BoldItalicUnderlineToggles,
@@ -43,7 +43,7 @@ async function imageUploadHandler(file) {
     }
 
     // Upload and return URL
-    const url = await uploadImage(processedFile, activeVault)
+    const url = await uploadImage(processedFile, activeVault.id)
     return url
   } catch (error) {
     console.error('Image upload failed:', error)
@@ -56,13 +56,14 @@ export function MDXEditorComponent({ value, onChange, isLight, disabled }) {
 
   // Update editor content when value prop changes
   useEffect(() => {
+    console.log('MDXEditor useEffect, setting markdown, value length:', value?.length)
     if (editorRef.current && value !== undefined) {
       editorRef.current.setMarkdown(value)
     }
   }, [value])
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full max-h-screen overflow-y-scroll">
       <MDXEditor
         ref={editorRef}
         markdown={value ?? '# Start typing...'}

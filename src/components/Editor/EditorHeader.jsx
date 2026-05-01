@@ -1,9 +1,10 @@
-import { ChevronRight, Save } from 'lucide-react'
+import React from 'react'
+import { ChevronRight, Save, Network } from 'lucide-react'
 
 /**
  * Editor header with breadcrumbs, save status, and mode indicator
  */
-export function EditorHeader({ activeVault, activeNotePath, saveStatus, editorMode, onSave, isLight }) {
+export const EditorHeader = React.memo(function EditorHeader({ activeVault, activeNotePath, saveStatus, editorMode, onSave, onOpenGraph, isLight }) {
   const breadcrumbs = activeNotePath ? activeNotePath.split('/').filter(Boolean) : []
 
   return (
@@ -11,7 +12,7 @@ export function EditorHeader({ activeVault, activeNotePath, saveStatus, editorMo
       <div className="flex items-center justify-between gap-2">
         {/* Breadcrumbs */}
         <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
-          <span className={`font-medium truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>{activeVault}</span>
+          <span className={`font-medium truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>{activeVault?.name || 'No vault'}</span>
           {breadcrumbs.length > 0 && <ChevronRight className={`w-4 h-4 shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`} />}
           {breadcrumbs.map((crumb, index) => (
             <span key={index} className={`text-sm truncate ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
@@ -21,7 +22,7 @@ export function EditorHeader({ activeVault, activeNotePath, saveStatus, editorMo
           ))}
         </div>
 
-        {/* Save Status & Button */}
+        {/* Save Status & Buttons */}
         <div className="flex items-center gap-2 shrink-0">
           <span className={`text-sm font-medium whitespace-nowrap ${saveStatus === 'saving' ? 'text-blue-500' : saveStatus === 'unsaved' ? 'text-orange-500' : 'text-green-500'}`}>
             {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved' : 'Saved'}
@@ -34,6 +35,13 @@ export function EditorHeader({ activeVault, activeNotePath, saveStatus, editorMo
           >
             <Save className="w-4 h-4" />
           </button>
+          <button
+            className={`p-2 rounded-lg ${isLight ? 'hover:bg-slate-200 text-slate-600' : 'hover:bg-slate-800 text-slate-400'}`}
+            onClick={onOpenGraph}
+            title="Open Graph View"
+          >
+            <Network className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Editor Mode */}
@@ -43,4 +51,4 @@ export function EditorHeader({ activeVault, activeNotePath, saveStatus, editorMo
       </div>
     </header>
   )
-}
+})

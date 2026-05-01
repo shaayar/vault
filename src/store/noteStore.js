@@ -1,8 +1,8 @@
 import { create } from 'zustand'
-import { createNote as createNoteApi, deleteNote, getNote, getNoteTree, moveNote, renameNote, updateNote } from '../api/noteApi'
-import { createFolder, deleteFolder, moveFolder, renameFolder } from '../api/folderApi'
-import { parseFrontmatter } from '../utils/markdownUtils'
-import { getVaultMeta, updateVaultMeta } from '../api/vaultApi'
+import { createNote as createNoteApi, deleteNote, getNote, getNoteTree, moveNote, renameNote, updateNote } from '../api/supabase/noteApi'
+import { createFolder, deleteFolder, moveFolder, renameFolder } from '../api/supabase/folderApi'
+import { parseFrontmatter, extractTagsFromFirstHeading, reconstructContentWithTags } from '../utils/markdownUtils'
+import { getVaultMeta, updateVaultMeta } from '../api/supabase/vaultApi'
 import { toSafePathSegment } from '../utils/fileUtils'
 import { useVaultStore } from './vaultStore'
 import { findFolderByPath, findNoteByPath, flattenNotePaths, normalizeNoteTree, getFallbackNoteIndexEntry, buildSafeNoteContent, collectAllFolderIds } from '../utils/treeUtils'
@@ -16,6 +16,7 @@ export const useNoteStore = create((set, get) => ({
   notesInFolder: [],
   activeNotePath: '',
   activeNoteContent: '',
+  activeNoteTags: [],
   lastSavedContent: '',
   editorMode: 'split',
   saveStatus: 'idle',
@@ -45,6 +46,9 @@ export const useNoteStore = create((set, get) => ({
   },
   setActiveTag: (tag) => {
     set({ activeTag: tag })
+  },
+  setActiveNoteTags: (tags) => {
+    set({ activeNoteTags: tags })
   },
   setSortMode: (sortMode) => {
     set({ sortMode })
@@ -118,7 +122,8 @@ export const useNoteStore = create((set, get) => ({
   // --- CRUD operations (compatibility layer replacing fileExplorerStore) ---
   createNode: async (parentId, type, name) => {
     const vault = useVaultStore.getState().activeVault
-    if (!vault) throw new Error('No active vault')
+    const vaultId = vault?.id
+    if (!vaultId) throw new Error('No active vault')
 
     const parentPath = parentId ? parentId.replace(/^folder-/, '') : ''
     if (type === 'note') {
@@ -137,7 +142,8 @@ export const useNoteStore = create((set, get) => ({
 
   deleteNode: async (nodeId) => {
     const vault = useVaultStore.getState().activeVault
-    if (!vault) throw new Error('No active vault')
+    const vaultId = vault?.id
+    if (!vaultId) throw new Error('No active vault')
 
     const node = get().getNode(nodeId)
     if (!node) throw new Error('Node not found')
@@ -151,7 +157,8 @@ export const useNoteStore = create((set, get) => ({
 
   renameNode: async (nodeId, newName) => {
     const vault = useVaultStore.getState().activeVault
-    if (!vault) throw new Error('No active vault')
+    const vaultId = vault?.id
+    if (!vaultId) throw new Error('No active vault')
 
     const node = get().getNode(nodeId)
     if (!node) throw new Error('Node not found')
@@ -165,7 +172,8 @@ export const useNoteStore = create((set, get) => ({
 
   duplicateNode: async (nodeId, newParentId = null, newName = null) => {
     const vault = useVaultStore.getState().activeVault
-    if (!vault) throw new Error('No active vault')
+    const vaultId = vault?.id
+    if (!vaultId) throw new Error('No active vault')
     const sourceNode = get().getNode(nodeId)
     if (!sourceNode) throw new Error('Source node not found')
 
@@ -174,7 +182,7 @@ export const useNoteStore = create((set, get) => ({
 
     if (sourceNode.type === 'note') {
       // Fetch original note content
-      const noteData = await getNote(vault, sourceNode.path)
+      const noteData = await getNote(vaultId, sourceNode.path)
       const content = noteData.data?.content || ''
       const baseName = newName || sourceNode.name.replace(/\.md$/i, '') + ' (copy)'
       const fullBase = baseName.endsWith('.md') ? baseName : baseName + '.md'
@@ -189,8 +197,8 @@ export const useNoteStore = create((set, get) => ({
       }
 
       const newPath = candidatePath(targetParentPath)
-      await createNoteApi(vault, newPath, content)
-      await get().loadNoteTreeForVault(vault)
+      await createNoteApi(vaultId, newPath, content)
+      await get().loadNoteTreeForVault(vaultId)
     } else if (sourceNode.type === 'folder') {
       throw new Error('Folder duplication not yet implemented')
     }
@@ -272,17 +280,22 @@ export const useNoteStore = create((set, get) => ({
   },
   saveActiveNote: async () => {
     const activeVault = useVaultStore.getState().activeVault
+    const activeVaultId = activeVault?.id
     const activeNotePath = get().activeNotePath
     const activeNoteContent = get().activeNoteContent
+    const activeNoteTags = get().activeNoteTags
     const lastSavedContent = get().lastSavedContent
-    if (!activeVault || !activeNotePath || activeNoteContent === lastSavedContent) {
+    if (!activeVaultId || !activeNotePath || activeNoteContent === lastSavedContent) {
       return
     }
 
     set({ saveStatus: 'saving', error: '' })
     try {
+      // Reconstruct content with tags before saving
+      const contentWithTags = reconstructContentWithTags(activeNoteContent, activeNoteTags)
+
       // Parse frontmatter to get title
-      const parsed = parseFrontmatter(activeNoteContent)
+      const parsed = parseFrontmatter(contentWithTags)
       const title = parsed.frontmatter?.title
 
       // If title exists and differs from filename, rename the file
@@ -293,9 +306,9 @@ export const useNoteStore = create((set, get) => ({
         if (safeTitle && safeTitle !== currentFilename) {
           const folderPath = activeNotePath.split('/').slice(0, -1).join('/')
           const newPath = folderPath ? `${folderPath}/${safeTitle}.md` : `${safeTitle}.md`
-          await renameNote(activeVault, activeNotePath, title)
+          await renameNote(activeVaultId, activeNotePath, title)
           set({ activeNotePath: newPath })
-          await get().loadNoteTreeForVault(activeVault)
+          // Note: tree will be updated on next navigation or refresh
           renamedPath = newPath
         }
       }
@@ -303,10 +316,10 @@ export const useNoteStore = create((set, get) => ({
       // Update URL if note was renamed
       if (renamedPath) {
         const encodedPath = renamedPath.split('/').map(encodeURIComponent).join('/')
-        window.history.replaceState(null, '', `/${encodeURIComponent(activeVault)}/${encodedPath}`)
+        window.history.replaceState(null, '', `/${encodeURIComponent(activeVaultId)}/${encodedPath}`)
       }
 
-      await updateNote(activeVault, get().activeNotePath, activeNoteContent)
+      await updateNote(activeVaultId, get().activeNotePath, contentWithTags)
       set({ saveStatus: 'saved', lastSavedContent: activeNoteContent })
     } catch (error) {
       set({
@@ -322,6 +335,7 @@ export const useNoteStore = create((set, get) => ({
       notesInFolder: [],
       activeNotePath: '',
       activeNoteContent: '',
+      activeNoteTags: [],
       lastSavedContent: '',
       isLoading: false,
       saveStatus: 'idle',
@@ -343,8 +357,11 @@ export const useNoteStore = create((set, get) => ({
       error: '',
     })
   },
-  loadNoteTreeForVault: async (vaultName) => {
-    if (!vaultName) {
+  loadNoteTreeForVault: async (vault) => {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    console.log(`loadNoteTreeForVault called with vault:`, vault, `vaultId: ${vaultId}`)
+    if (!vault || !vaultId) {
       set({
         noteTree: { name: 'Root', path: '', folders: [], notes: [] },
         notesInFolder: [],
@@ -356,7 +373,11 @@ export const useNoteStore = create((set, get) => ({
 
     set({ isLoading: true, error: '' })
     try {
-      const noteTree = normalizeNoteTree(await getNoteTree(vaultName))
+      console.log(`Calling getNoteTree for vaultId: ${vaultId}`)
+      const notes = await getNoteTree(vaultId)
+      console.log(`Raw notes from getNoteTree:`, notes)
+      const noteTree = normalizeNoteTree(notes)
+      console.log(`Normalized noteTree:`, noteTree)
       const rootPath = noteTree?.path ?? ''
       const selectedPath = get().selectedFolderPath || rootPath
       const selectedNode = findFolderByPath(noteTree, selectedPath) ?? noteTree
@@ -364,17 +385,23 @@ export const useNoteStore = create((set, get) => ({
       const noteIndex = await Promise.all(
         notePaths.map(async (notePath) => {
           try {
-            const noteData = await getNote(vaultName, notePath)
+            const noteData = await getNote(vaultId, notePath)
             const resolvedPath = noteData.data?.path ?? notePath
             const content = noteData.data?.content ?? ''
             const parsed = parseFrontmatter(content)
+            const { tags: extractedTags, cleanContent } = extractTagsFromFirstHeading(content)
+
+            // Combine frontmatter tags with extracted tags, prioritizing extracted tags
+            const frontmatterTags = Array.isArray(parsed.frontmatter?.tags) ? parsed.frontmatter.tags.map(String) : []
+            const allTags = extractedTags.length > 0 ? extractedTags : frontmatterTags
+
             const updatedAt = parsed.frontmatter?.updated_at ?? parsed.frontmatter?.updated ?? ''
             const createdAt = parsed.frontmatter?.created_at ?? parsed.frontmatter?.created ?? ''
             return {
               path: resolvedPath,
               title: parsed.frontmatter?.title || resolvedPath.split('/').pop()?.replace(/\.md$/i, '') || resolvedPath,
-              tags: Array.isArray(parsed.frontmatter?.tags) ? parsed.frontmatter.tags.map(String) : [],
-              content: content,
+              tags: allTags,
+              content: cleanContent,
               updatedAt,
               createdAt,
               frontmatter: parsed.frontmatter ?? {},
@@ -388,13 +415,13 @@ export const useNoteStore = create((set, get) => ({
 
       let pinnedNotes = []
       try {
-        const meta = await getVaultMeta(vaultName)
+        const meta = await getVaultMeta(vaultId)
         pinnedNotes = Array.isArray(meta?.pinned_notes) ? meta.pinned_notes : []
       } catch {
         pinnedNotes = []
       }
 
-      const recentKey = `vaultnote:recent:${vaultName}`
+      const recentKey = `vaultnote:recent:${vaultId}`
       const recentRaw = window.localStorage.getItem(recentKey)
       let recentNotes = []
       try {
@@ -413,7 +440,7 @@ export const useNoteStore = create((set, get) => ({
         isLoading: false,
       })
     } catch (error) {
-      console.error('Failed to load note tree for vault:', vaultName, error)
+      console.error('Failed to load note tree for vault:', vaultId, error)
       set({
         noteTree: { name: 'Root', path: '', folders: [], notes: [] },
         selectedFolderPath: '',
@@ -426,18 +453,30 @@ export const useNoteStore = create((set, get) => ({
       })
     }
   },
-  openNote: async (vaultName, notePath) => {
-    if (!vaultName || !notePath) return
+  openNote: async (vault, notePath) => {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    console.log(`openNote called with vaultId: ${vaultId}, notePath: ${notePath}`)
+    if (!vaultId || !notePath) return
     set({ isLoading: true, error: '' })
     try {
-      const note = await getNote(vaultName, notePath)
+      const note = await getNote(vaultId, notePath)
+      console.log(`Note fetched for ${notePath}:`, note.data?.content ? `content length ${note.data.content.length}` : 'no content')
+      const content = note.data?.content ?? ''
+      const { tags: extractedTags, cleanContent } = extractTagsFromFirstHeading(content)
+
+      console.log('NoteStore Debug - Raw content:', content)
+      console.log('NoteStore Debug - Extracted tags:', extractedTags)
+      console.log('NoteStore Debug - Clean content:', cleanContent)
+
       const currentRecent = get().recentNotes.filter((path) => path !== (note.data?.path ?? notePath))
       const nextRecent = [note.data?.path ?? notePath, ...currentRecent].slice(0, 10)
-      window.localStorage.setItem(`vaultnote:recent:${vaultName}`, JSON.stringify(nextRecent))
+      window.localStorage.setItem(`vaultnote:recent:${vaultId}`, JSON.stringify(nextRecent))
       set({
         activeNotePath: note.data?.path ?? notePath,
-        activeNoteContent: note.data?.content ?? '',
-        lastSavedContent: note.data?.content ?? '',
+        activeNoteContent: cleanContent,
+        activeNoteTags: extractedTags,
+        lastSavedContent: cleanContent,
         recentNotes: nextRecent,
         saveStatus: 'idle',
         isLoading: false,
@@ -451,11 +490,13 @@ export const useNoteStore = create((set, get) => ({
   },
 
   // Create a note directly (used by Header)
-  createNote: async (vaultName, notePath, content) => {
+  createNote: async (vault, notePath, content) => {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
     set({ isLoading: true, error: '' })
     try {
-      await createNoteApi(vaultName, notePath, content)
-      await get().loadNoteTreeForVault(vaultName)
+      await createNoteApi(vaultId, notePath, content)
+      await get().loadNoteTreeForVault(vaultId)
       set({ isLoading: false })
     } catch (error) {
       set({
@@ -464,7 +505,7 @@ export const useNoteStore = create((set, get) => ({
       })
     }
   },
-  createNoteInFolder: async (vaultName, folderPath, noteTitle) => {
+  createNoteInFolder: async (vault, folderPath, noteTitle) => {
     const trimmedTitle = noteTitle.trim()
     if (!trimmedTitle) return
     const safeStem = toSafePathSegment(trimmedTitle)
@@ -488,9 +529,11 @@ export const useNoteStore = create((set, get) => ({
     const notePath = folderPath ? `${folderPath}/${noteFile}` : noteFile
     set({ isLoading: true, error: '' })
     try {
-      const created = await createNoteApi(vaultName, notePath, buildSafeNoteContent(trimmedTitle))
-      await get().loadNoteTreeForVault(vaultName)
-      await get().openNote(vaultName, created?.path ?? notePath)
+      // Extract vault ID from vault object or use directly if it's already an ID
+      const vaultId = typeof vault === 'string' ? vault : vault.id
+      const created = await createNoteApi(vaultId, notePath, buildSafeNoteContent(trimmedTitle))
+      await get().loadNoteTreeForVault(vaultId)
+      await get().openNote(vaultId, created?.path ?? notePath)
       set({ saveStatus: 'saved' })
     } catch (error) {
       set({
@@ -499,11 +542,14 @@ export const useNoteStore = create((set, get) => ({
       })
     }
   },
-  createFolderInFolder: async (vaultName, currentFolderPath, folderName) => {
+  createFolderInFolder: async (vault, currentFolderPath, folderName) => {
     const trimmedFolder = folderName.trim()
     const safeFolder = toSafePathSegment(trimmedFolder)
     if (!safeFolder) return
     const folderPath = currentFolderPath ? `${currentFolderPath}/${safeFolder}` : safeFolder
+
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
 
     // Check if folder already exists in the same parent
     const noteTree = get().noteTree
@@ -533,8 +579,8 @@ export const useNoteStore = create((set, get) => ({
       const finalFolderPath = parentPath ? `${parentPath}/${uniqueSafeFolder}` : uniqueSafeFolder
       set({ isLoading: true, error: '' })
       try {
-        const created = await createFolder(vaultName, finalFolderPath)
-        await get().loadNoteTreeForVault(vaultName)
+        const created = await createFolder(vaultId, finalFolderPath)
+        await get().loadNoteTreeForVault(vaultId)
         get().setSelectedFolderPath(created?.path ?? finalFolderPath)
       } catch (error) {
         set({
@@ -547,8 +593,8 @@ export const useNoteStore = create((set, get) => ({
 
     set({ isLoading: true, error: '' })
     try {
-      const created = await createFolder(vaultName, folderPath)
-      await get().loadNoteTreeForVault(vaultName)
+      const created = await createFolder(vaultId, folderPath)
+      await get().loadNoteTreeForVault(vaultId)
       get().setSelectedFolderPath(created?.path ?? folderPath)
     } catch (error) {
       set({
@@ -556,54 +602,31 @@ export const useNoteStore = create((set, get) => ({
         error: error instanceof Error ? error.message : 'Failed to create folder',
       })
     }
+    return
   },
-  renameNoteByPath: async (vaultName, notePath, nextName) => {
-    const trimmedName = nextName.trim()
-    const safeStem = toSafePathSegment(trimmedName)
-    if (!vaultName || !notePath || !safeStem) return
-    const folderPath = notePath.split('/').slice(0, -1).join('/')
-    const nextPath = folderPath ? `${folderPath}/${safeStem}.md` : `${safeStem}.md`
-    set({ isLoading: true, error: '' })
-    try {
-      await renameNote(vaultName, notePath, trimmedName)
-      const activeNotePath = get().activeNotePath
-      const selectedFolderPath = get().selectedFolderPath
-      await get().loadNoteTreeForVault(vaultName)
-      if (activeNotePath === notePath) {
-        await get().openNote(vaultName, nextPath)
-        // Update URL to reflect the new path
-        const encodedPath = nextPath.split('/').map(encodeURIComponent).join('/')
-        window.history.replaceState(null, '', `/${encodeURIComponent(vaultName)}/${encodedPath}`)
-      } else if (selectedFolderPath === folderPath) {
-        get().setSelectedFolderPath(folderPath)
-      }
-    } catch (error) {
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to rename note',
-      })
-    }
-  },
-  renameFolderByPath: async (vaultName, folderPath, nextName) => {
+
+  renameFolderByPath: async (vault, folderPath, nextName) => {
     const trimmedName = nextName.trim()
     const safeFolder = toSafePathSegment(trimmedName)
-    if (!vaultName || !folderPath || !safeFolder) return
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    if (!vaultId || !folderPath || !safeFolder) return
     const parentPath = folderPath.split('/').slice(0, -1).join('/')
     const nextPath = parentPath ? `${parentPath}/${safeFolder}` : safeFolder
     set({ isLoading: true, error: '' })
     try {
-      await renameFolder(vaultName, folderPath, trimmedName)
+      await renameFolder(vaultId, folderPath, trimmedName)
       const activeNotePath = get().activeNotePath
       const selectedFolderPath = get().selectedFolderPath
       const prefix = `${folderPath}/`
-      await get().loadNoteTreeForVault(vaultName)
+      await get().loadNoteTreeForVault(vaultId)
       if (activeNotePath === folderPath || activeNotePath.startsWith(prefix)) {
         const remappedActive = activeNotePath.replace(prefix, `${nextPath}/`)
         const finalPath = remappedActive === activeNotePath ? activeNotePath.replace(folderPath, nextPath) : remappedActive
-        await get().openNote(vaultName, finalPath)
-        // Update URL to reflect the new path
+        await get().openNote(vaultId, finalPath)
+        // Update URL to reflect new path
         const encodedPath = finalPath.split('/').map(encodeURIComponent).join('/')
-        window.history.replaceState(null, '', `/${encodeURIComponent(vaultName)}/${encodedPath}`)
+        window.history.replaceState(null, '', `/${encodeURIComponent(vaultId)}/${encodedPath}`)
       }
       if (selectedFolderPath === folderPath || selectedFolderPath.startsWith(prefix)) {
         get().setSelectedFolderPath(nextPath)
@@ -615,68 +638,43 @@ export const useNoteStore = create((set, get) => ({
       })
     }
   },
-  moveNoteByPath: async (vaultName, notePath, targetPath) => {
-    if (!vaultName || !notePath || !targetPath) return
+  renameNoteByPath: async (vault, notePath, nextName) => {
+    const trimmedName = nextName.trim()
+    const safeStem = toSafePathSegment(trimmedName)
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    if (!vaultId || !notePath || !safeStem) return
+    const folderPath = notePath.split('/').slice(0, -1).join('/')
+    const nextPath = folderPath ? `${folderPath}/${safeStem}.md` : `${safeStem}.md`
     set({ isLoading: true, error: '' })
     try {
-      await moveNote(vaultName, notePath, targetPath)
-      const activeNotePath = get().activeNotePath
-      await get().loadNoteTreeForVault(vaultName)
-      if (activeNotePath === notePath) {
-        const noteName = notePath.split('/').pop()
-        const newPath = targetPath ? `${targetPath}/${noteName}` : noteName
-        await get().openNote(vaultName, newPath)
-      }
-      set({ isLoading: false })
-    } catch (error) {
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to move note',
-      })
-    }
-  },
-  moveFolderByPath: async (vaultName, folderPath, targetPath) => {
-    if (!vaultName || !folderPath || !targetPath) return
-    set({ isLoading: true, error: '' })
-    try {
-      await moveFolder(vaultName, folderPath, targetPath)
+      await renameNote(vaultId, notePath, trimmedName)
       const activeNotePath = get().activeNotePath
       const selectedFolderPath = get().selectedFolderPath
-      const prefix = `${folderPath}/`
-      await get().loadNoteTreeForVault(vaultName)
-      if (activeNotePath === folderPath || activeNotePath.startsWith(prefix)) {
-        const folderName = folderPath.split('/').pop()
-        const newPrefix = targetPath ? `${targetPath}/${folderName}/` : `${folderName}/`
-        const remappedActive = activeNotePath.replace(prefix, newPrefix)
-        await get().openNote(vaultName, remappedActive)
-        // Update URL to reflect the new path
-        const encodedPath = remappedActive.split('/').map(encodeURIComponent).join('/')
-        window.history.replaceState(null, '', `/${encodeURIComponent(vaultName)}/${encodedPath}`)
-      }
-      if (selectedFolderPath === folderPath || selectedFolderPath.startsWith(prefix)) {
-        const folderName = folderPath.split('/').pop()
-        get().setSelectedFolderPath(targetPath ? `${targetPath}/${folderName}` : folderName)
-
-
-        // Update URL to reflect the new path
-        const encodedPath = (targetPath ? `${targetPath}/${folderName}` : folderName).split('/').map(encodeURIComponent).join('/')
-        window.history.replaceState(null, '', `/${encodeURIComponent(vaultName)}/${encodedPath}`)
-
-
+      await get().loadNoteTreeForVault(vaultId)
+      if (activeNotePath === notePath) {
+        await get().openNote(vaultId, nextPath)
+        // Update URL to reflect new path
+        const encodedPath = nextPath.split('/').map(encodeURIComponent).join('/')
+        window.history.replaceState(null, '', `/${encodeURIComponent(vaultId)}/${encodedPath}`)
+      } else if (selectedFolderPath === folderPath) {
+        get().setSelectedFolderPath(folderPath)
       }
     } catch (error) {
       set({
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to move folder',
+        error: error instanceof Error ? error.message : 'Failed to rename note',
       })
     }
   },
-  deleteNoteByPath: async (vaultName, notePath) => {
+  deleteNoteByPath: async (vault, notePath) => {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
     set({ isLoading: true, error: '' })
     try {
-      await deleteNote(vaultName, notePath)
+      await deleteNote(vaultId, notePath)
       const currentPath = get().activeNotePath
-      await get().loadNoteTreeForVault(vaultName)
+      await get().loadNoteTreeForVault(vaultId)
       if (currentPath === notePath) {
         set({ activeNotePath: '', activeNoteContent: '', lastSavedContent: '', saveStatus: 'idle' })
       }
@@ -687,12 +685,67 @@ export const useNoteStore = create((set, get) => ({
       })
     }
   },
-  deleteFolderByPath: async (vaultName, folderPath) => {
+  moveNoteByPath: async (vault, notePath, targetPath) => {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    if (!vaultId || !notePath || !targetPath) return
     set({ isLoading: true, error: '' })
     try {
-      await deleteFolder(vaultName, folderPath)
+      await moveNote(vaultId, notePath, targetPath)
+      const activeNotePath = get().activeNotePath
+      await get().loadNoteTreeForVault(vaultId)
+      if (activeNotePath === notePath) {
+        const noteName = notePath.split('/').pop()
+        const newPath = targetPath ? `${targetPath}/${noteName}` : noteName
+        await get().openNote(vaultId, newPath)
+      }
+      set({ isLoading: false })
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to move note',
+      })
+    }
+  },
+  moveFolderByPath: async (vault, folderPath, targetPath) => {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    if (!vaultId || !folderPath || !targetPath) return
+    set({ isLoading: true, error: '' })
+    try {
+      await moveFolder(vaultId, folderPath, targetPath)
+      const activeNotePath = get().activeNotePath
+      const selectedFolderPath = get().selectedFolderPath
+      const prefix = `${folderPath}/`
+      await get().loadNoteTreeForVault(vaultId)
+      if (activeNotePath === folderPath || activeNotePath.startsWith(prefix)) {
+        const folderName = folderPath.split('/').pop()
+        const newPrefix = targetPath ? `${targetPath}/${folderName}/` : `${folderName}/`
+        const remappedActive = activeNotePath.replace(prefix, newPrefix)
+        await get().openNote(vaultId, remappedActive)
+        // Update URL to reflect new path
+        const encodedPath = remappedActive.split('/').map(encodeURIComponent).join('/')
+        window.history.replaceState(null, '', `/${encodeURIComponent(vaultId)}/${encodedPath}`)
+      }
+      if (selectedFolderPath === folderPath || selectedFolderPath.startsWith(prefix)) {
+        get().setSelectedFolderPath(targetPath)
+      }
+      set({ isLoading: false })
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to move folder',
+      })
+    }
+  },
+  deleteFolderByPath: async (vault, folderPath) => {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
+    set({ isLoading: true, error: '' })
+    try {
+      await deleteFolder(vaultId, folderPath)
       const currentSelectedFolder = get().selectedFolderPath
-      await get().loadNoteTreeForVault(vaultName)
+      await get().loadNoteTreeForVault(vaultId)
       if (currentSelectedFolder === folderPath || currentSelectedFolder.startsWith(`${folderPath}/`)) {
         get().setSelectedFolderPath('')
       }
@@ -703,13 +756,15 @@ export const useNoteStore = create((set, get) => ({
       })
     }
   },
-  togglePinnedNote: async (vaultName, notePath) => {
+  togglePinnedNote: async (vault, notePath) => {
+    // Extract vault ID from vault object or use directly if it's already an ID
+    const vaultId = typeof vault === 'string' ? vault : vault.id
     const currentPins = get().pinnedNotes
     const nextPins = currentPins.includes(notePath)
       ? currentPins.filter((path) => path !== notePath)
       : [...currentPins, notePath]
     try {
-      await updateVaultMeta(vaultName, nextPins)
+      await updateVaultMeta(vaultId, nextPins)
       set({ pinnedNotes: nextPins })
     } catch (error) {
       set({

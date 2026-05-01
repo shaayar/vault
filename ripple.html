@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reliable Ripple Footer</title>
+
+<style>
+  body {
+    margin: 0;
+    min-height: 200vh;
+    background: #0b0f1a;
+    color: white;
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .content {
+    padding: 40px;
+  }
+
+  footer {
+    position: relative;
+    height: 260px;
+    background: radial-gradient(circle at center, #020617, #000);
+    overflow: hidden;
+  }
+
+  canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+  }
+
+  .footer-text {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding-top: 100px;
+    opacity: 0.7;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="content">
+  <h1>Scroll Down</h1>
+  <p>Move mouse + click on footer</p>
+</div>
+
+<footer id="footer">
+  <canvas id="canvas"></canvas>
+  <div class="footer-text">Water Ripple Footer</div>
+</footer>
+
+<script>
+const isTouch = window.matchMedia("(pointer: coarse)").matches;
+
+if (!isTouch) {
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const footer = document.getElementById("footer");
+
+  let ripples = [];
+  let lastX = null;
+  let lastY = null;
+
+  function resize() {
+    const rect = footer.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+  }
+
+  resize();
+  window.addEventListener("resize", resize);
+
+  function addRipple(x, y, power = 1) {
+    ripples.push({
+      x,
+      y,
+      r: 0,
+      alpha: 0.6 * power,
+      speed: 2 + power
+    });
+  }
+
+  footer.addEventListener("mousemove", (e) => {
+    const rect = footer.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (lastX !== null) {
+      const dx = x - lastX;
+      const dy = y - lastY;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > 8) {
+        addRipple(x, y, 0.3);
+      }
+    }
+
+    lastX = x;
+    lastY = y;
+  });
+
+  footer.addEventListener("click", (e) => {
+    const rect = footer.getBoundingClientRect();
+    addRipple(e.clientX - rect.left, e.clientY - rect.top, 1.5);
+  });
+
+  function drawRipple(r) {
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+
+    const g = ctx.createRadialGradient(
+      r.x, r.y, r.r * 0.2,
+      r.x, r.y, r.r
+    );
+
+    g.addColorStop(0, `rgba(255,255,255,${r.alpha})`);
+    g.addColorStop(1, `rgba(255,255,255,0)`);
+
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 25;
+    ctx.shadowColor = "rgba(255,255,255,0.2)";
+    ctx.stroke();
+  }
+
+  function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      let r = ripples[i];
+
+      r.r += r.speed;
+      r.alpha *= 0.96;
+
+      drawRipple(r);
+
+      if (r.alpha < 0.02) {
+        ripples.splice(i, 1);
+      }
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+}
+</script>
+
+</body>
+</html>

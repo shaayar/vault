@@ -79,9 +79,10 @@ Path rules: sanitized segments, `realpath` boundary under `vaults/`.
 
 - Named exports for components; default export only `App`.
 - Destructive actions: `window.confirm` before delete vault/note (where applicable).
-- Theme: `localStorage` key `vaultnote:theme` (`dark`|`light`); `document.documentElement.classList` toggles `light`.
-- Panel widths: `vaultnote:sidebarWidth`, `vaultnote:noteListWidth`.
-- Auth: `localStorage` keys `vaultnote:user` (username), `vaultnote:users` (user registry with hashed passwords).
+- **Storage Rule: No local storage usage. All data (notes, vaults, images, user preferences like theme, recent notes, panel widths) must be stored in Supabase database. Auth is handled via Supabase Auth.**
+- Theme: Stored in Supabase user profile or preferences table.
+- Panel widths: Stored in user preferences in Supabase.
+- Recent notes: Stored in a user-specific table in Supabase.
 
 ## Wiki links
 

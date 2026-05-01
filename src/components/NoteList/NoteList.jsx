@@ -56,7 +56,7 @@ export function NoteList({ isCollapsed, onToggleCollapse, isLight, noteListWidth
     if (!activeVault) return
     const noteTitle = window.prompt('New note title:')
     if (!noteTitle) return
-    await createNoteInFolder(activeVault, selectedFolderPath, noteTitle)
+    await createNoteInFolder(activeVault.id, selectedFolderPath, noteTitle)
   }
 
   return (
@@ -164,9 +164,9 @@ export function NoteList({ isCollapsed, onToggleCollapse, isLight, noteListWidth
                     : 'text-slate-300 hover:bg-slate-800'
                     }`}
                   onClick={() => {
-                    openNote(activeVault, note.path)
+                    openNote(activeVault.id, note.path)
                     const encodedPath = encodeNotePath(note.path)
-                    navigate(`/${activeVault}/${encodedPath}`)
+                    navigate(`/${activeVault.id}/${encodedPath}`)
                   }}
                   onContextMenu={(event) => {
                     if (!onNoteContextMenu) return
@@ -184,7 +184,7 @@ export function NoteList({ isCollapsed, onToggleCollapse, isLight, noteListWidth
                         ? 'text-amber-300 hover:bg-amber-950/40'
                         : 'text-slate-400 hover:bg-slate-800'
                         }`}
-                      onClick={() => togglePinnedNote(activeVault, note.path)}
+                      onClick={() => togglePinnedNote(activeVault.id, note.path)}
                     >
                       {pinnedNotes.includes(note.path) ? '★' : '☆'}
                     </button>
@@ -193,7 +193,7 @@ export function NoteList({ isCollapsed, onToggleCollapse, isLight, noteListWidth
                       className="rounded px-2 py-1 text-rose-300 hover:bg-rose-950/40"
                       onClick={() => {
                         if (!window.confirm(`Delete note "${note.name}"?`)) return
-                        deleteNoteByPath(activeVault, note.path)
+                        deleteNoteByPath(activeVault.id, note.path)
                       }}
                     >
                       Del
